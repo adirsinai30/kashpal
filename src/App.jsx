@@ -1026,7 +1026,7 @@ function SettingsSection({cats,setCats}){
         {tab==="db"&&(
           <Card>
             <div style={{fontSize:14,fontWeight:600,color:T.text,marginBottom:6}}>חיבור ל-Google Sheets</div>
-            <div style={{fontSize:12,color:T.textSub,lineHeight:1.7,marginBottom:16}}>חבר את SinPlace לגיליון Google Sheets שלך כדי לסנכרן נתונים אוטומטית בין שניכם.</div>
+            <div style={{fontSize:12,color:T.textSub,lineHeight:1.7,marginBottom:16}}>חבר את Sinario לגיליון Google Sheets שלך כדי לסנכרן נתונים אוטומטית בין שניכם.</div>
             <div style={{background:"#0d1117",borderRadius:10,padding:14,fontSize:11,color:"#4ade80",fontFamily:"monospace",lineHeight:1.9,marginBottom:14}}>
               {`function doPost(e) {
   const d = JSON.parse(e.postData.contents);
@@ -1101,7 +1101,7 @@ export default function App(){
           {/* Logo — LEFT (RTL = visual right) */}
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1}}>
-              <div style={{fontSize:18,fontWeight:700,fontFamily:T.display,color:T.navy,letterSpacing:-.3}}>SinPlace</div>
+              <div style={{fontSize:18,fontWeight:700,fontFamily:T.display,color:T.navy,letterSpacing:-.3}}>Sinario</div>
             </div>
             <div style={{width:34,height:34,borderRadius:10,background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 2px 8px ${T.navy}33`}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
