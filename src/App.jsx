@@ -592,25 +592,69 @@ function GroceryTab(){
 
   const handleReceiptUpload=async e=>{
     const file=e.target.files?.[0];if(!file)return;
-    setScanMsg("מנתח קבלה…");
-    const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.readAsDataURL(file);});
+    setScanMsg("קורא קבלה…");
     try{
-      const resp = await rateLimitedFetch({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:400,
-        messages:[{role:"user",content:[
-          {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data:b64}},
-          {type:"text",text:`חלץ רשימת פריטים מהקבלה. החזר JSON בלבד:\n{"items":[{"name":"שם בעברית","qty":"1","price":0}]}`}
-        ]}]
-      });
-      const data=await resp.json();
-      const text=data.content?.map(b=>b.text||"").join("");
-      const parsed=JSON.parse(text.replace(/```json|```/g,"").trim());
-      const newItems=(parsed.items||[]).filter(i=>i.name).map(i=>({id:uid(),name:i.name,qty:String(i.qty||1),price:+i.price||"",checked:false}));
-      if(newItems.length){setGrocery(g=>[...g,...newItems]);setScanMsg(`✓ נוספו ${newItems.length} פריטים`);}
-      else setScanMsg("לא זוהו פריטים");
-    }catch{setScanMsg("שגיאה — נסה שוב");}
-    setTimeout(()=>setScanMsg(""),3000);e.target.value="";
+      let rawText="";
+
+      if(file.type==="application/pdf"){
+        // PDF.js — extract text from PDF locally
+        const pdfjsLib=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js").catch(()=>null);
+        if(!pdfjsLib&&typeof window.pdfjsLib==="undefined"){
+          setScanMsg("שגיאה: נדרש PDF.js");setTimeout(()=>setScanMsg(""),3000);return;
+        }
+        const lib=window.pdfjsLib||pdfjsLib;
+        lib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        const arrayBuf=await file.arrayBuffer();
+        const pdf=await lib.getDocument({data:arrayBuf}).promise;
+        for(let p=1;p<=Math.min(pdf.numPages,3);p++){
+          const page=await pdf.getPage(p);
+          const tc=await page.getTextContent();
+          rawText+=tc.items.map(i=>i.str).join(" ")+"\n";
+        }
+      } else {
+        // Image — Tesseract.js OCR locally
+        if(!window.Tesseract){
+          await new Promise((res,rej)=>{
+            const s=document.createElement("script");
+            s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+            s.onload=res;s.onerror=rej;document.head.appendChild(s);
+          });
+        }
+        setScanMsg("מזהה טקסט (OCR)…");
+        const {data:{text}}=await window.Tesseract.recognize(file,["heb","eng"],{logger:()=>{}});
+        rawText=text;
+      }
+
+      // Parse raw text into grocery items
+      setScanMsg("מפרסר פריטים…");
+      const lines=rawText.split(/\n/).map(l=>l.trim()).filter(l=>l.length>1);
+      const priceRe=/(\d+[.,]\d{1,2}|\d+)\s*[₪$]?/;
+      const qtyRe=/^(\d+)\s*[×xX*]/;
+      const skipWords=["סה\"כ","total","subtotal","מע\"מ","vat","שלם","cash","change","תודה","thank","חשבונית","קבלה","תאריך","date","מספר","מחיר","price","כמות"];
+      const newItems=[];
+      for(const line of lines){
+        if(skipWords.some(w=>line.toLowerCase().includes(w.toLowerCase())))continue;
+        const priceMatch=line.match(priceRe);
+        const price=priceMatch?parseFloat(priceMatch[1].replace(",",".")):undefined;
+        const qtyMatch=line.match(qtyRe);
+        const qty=qtyMatch?qtyMatch[1]:"1";
+        // clean name: remove numbers/prices from ends
+        let name=line.replace(/[\d.,₪$%]+/g," ").replace(/[×xX*]/g," ").trim().replace(/\s+/g," ");
+        if(name.length<2||name.length>60)continue;
+        newItems.push({id:uid(),name,qty,price:price||"",checked:false});
+      }
+
+      if(newItems.length){
+        setGrocery(g=>[...g,...newItems]);
+        setScanMsg(`✓ נוספו ${newItems.length} פריטים`);
+      } else {
+        setScanMsg("לא זוהו פריטים — נסה תמונה ברורה יותר");
+      }
+    }catch(err){
+      console.error(err);
+      setScanMsg("שגיאה בקריאת הקבלה");
+    }
+    setTimeout(()=>setScanMsg(""),4000);e.target.value="";
   };
 
   return(
@@ -644,7 +688,7 @@ function GroceryTab(){
           <Btn onClick={add} style={{padding:"10px 12px",flexShrink:0}}><Icon name="plus" size={14} color="#fff"/></Btn>
         </div>
       </Card>
-      <input ref={fileRef} type="file" accept="image/*" onChange={handleReceiptUpload} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleReceiptUpload} style={{display:"none"}}/>
       <Card style={{border:`1.5px dashed ${T.border}`,background:T.bg,padding:14,cursor:"pointer"}} onClick={()=>fileRef.current?.click()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           <Icon name="photo" size={16} color={T.textSub}/>
@@ -881,32 +925,55 @@ function InvestSection() {
   // ══════════════════════════════════════════════════════
 
   const fetchPrices = async () => {
-    const tickers = [...new Set([
+    const allTickers = [...new Set([
       ...assets.map(a => extractTicker(a.security)),
       ...watchlist
     ])];
-    if (!tickers.length) return;
+    if (!allTickers.length) return;
     setPricesLoading(true); setPricesError("");
+    const result = {};
+
+    // Split: crypto vs stocks
+    const cryptoIds = { BTC:"bitcoin",ETH:"ethereum",SOL:"solana",BNB:"binancecoin",ADA:"cardano",XRP:"ripple",DOGE:"dogecoin",DOT:"polkadot",MATIC:"matic-network",AVAX:"avalanche-2" };
+    const cryptoTickers = allTickers.filter(t => cryptoIds[t]);
+    const stockTickers  = allTickers.filter(t => !cryptoIds[t]);
+
     try {
-      const resp = await rateLimitedFetch({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 400,
-          messages: [{
-            role: "user",
-            content: `Search for current live market prices for these tickers: ${tickers.join(", ")}.
-Return ONLY valid JSON, no markdown, no explanation:
-{"TICKER": price_as_number, ...}
-Use real-time prices from today.`
-          }]
+      // ── Crypto via CoinGecko (free, no key) ──
+      if (cryptoTickers.length) {
+        const ids = cryptoTickers.map(t=>cryptoIds[t]).join(",");
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        const d = await r.json();
+        cryptoTickers.forEach(t => {
+          const id = cryptoIds[t];
+          if (d[id]?.usd) result[t] = d[id].usd;
         });
-      const data = await resp.json();
-      const text = (data.content||[]).map(b=>b.text||"").join("");
-      const m = text.match(/\{[\s\S]*?\}/);
-      if (m) { setPrices(JSON.parse(m[0])); setLastUpdated(new Date()); }
-      else setPricesError("לא ניתן לקבל מחירים");
+      }
+
+      // ── Stocks/ETF via Yahoo Finance (free, no key) ──
+      if (stockTickers.length) {
+        for (const ticker of stockTickers) {
+          try {
+            // Use Yahoo Finance v8 chart endpoint via CORS proxy
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+            const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+            const wrapper = await r.json();
+            const data = JSON.parse(wrapper.contents);
+            const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+            if (price) result[ticker] = price;
+          } catch {}
+        }
+      }
+
+      if (Object.keys(result).length) {
+        setPrices(result);
+        setLastUpdated(new Date());
+      } else {
+        setPricesError("לא ניתן לקבל מחירים כרגע");
+      }
     } catch { setPricesError("שגיאת חיבור"); }
     setPricesLoading(false);
-  };
+  };;
 
   const detectSentiment = (text) => {
     const pos = ["עלייה","זינוק","שיא","רווח","חיובי","עולה","צמיחה","surge","rally","gain","rise","up","bull","beat","record","high","growth","profit"];
@@ -1024,31 +1091,56 @@ Use real-time prices from today.`
   const runAgent = async () => {
     if (!agentQuery.trim()) return;
     setAgentLoading(true);
-    const context = assets.map(a => {
+
+    // ── Build rich portfolio context ──
+    const totalPortfolioILS = assets.reduce((s,a)=>s+currentValILS(a),0);
+    const portfolioLines = assets.map(a => {
       const ticker  = extractTicker(a.security);
       const price   = prices[ticker];
       const shrs    = totalShares(a);
       const avg     = avgBuyPrice(a);
       const valILS  = currentValILS(a);
       const pnl     = unrealizedPnLILS(a);
-      return `${a.security}: ${shrs.toFixed(4)} יחידות | שער קנייה ממוצע $${avg.toFixed(2)} | שווי נוכחי ${fmt(valILS)} | רווח/הפסד ${pnl>=0?"+":""}${fmt(pnl)}`;
-    }).join("\n");
-    const realized = `סך רווח ממומש: ${totalRealized>=0?"+":""}${fmt(totalRealized)}`;
+      const pnlPct  = avg && price ? (((price - avg) / avg) * 100).toFixed(1) : "?";
+      const weight  = totalPortfolioILS ? ((valILS / totalPortfolioILS) * 100).toFixed(1) : "?";
+      return `• ${a.security}: ${shrs.toFixed(4)} יח׳ | קנייה $${avg?.toFixed(2)||"?"} | נוכחי $${price?.toFixed(2)||"?"} | שווי ${fmt(valILS)} (${weight}%) | P&L ${pnl>=0?"+":""}${fmt(pnl)} (${pnlPct}%)`;
+    }).join("");
+
+    const realized = `רווח ממומש כולל: ${totalRealized>=0?"+":""}${fmt(totalRealized)}`;
+    const totalVal  = `שווי תיק כולל: ${fmt(totalPortfolioILS)}`;
+
+    // ── Top news headlines for market context ──
+    const newsContext = news.slice(0,6).map(n=>`  - [${n.sentiment}] ${n.title} (${n.source})`).join("");
+
+    // ── Benchmarks hint ──
+    const sp500  = prices["SPY"]  || prices["^GSPC"] || null;
+    const nasdaq = prices["QQQ"]  || prices["^IXIC"] || null;
+    const benchmarks = [
+      sp500  ? `S&P 500 (SPY): $${sp500}` : null,
+      nasdaq ? `Nasdaq (QQQ): $${nasdaq}` : null,
+    ].filter(Boolean).join(" | ");
+
+    const systemPrompt = `אתה סוכן BI פיננסי חכם. אתה מנתח תיקי השקעות ומספק תובנות מעשיות בעברית.
+הנחיות: תן המלצות ספציפיות, השווה למדדים כשרלוונטי, ציין אחוז חשיפה, זהה סיכונים/הזדמנויות.
+פורמט: קצר, ממוקד, עם מסקנה אחת ברורה בסוף.`;
+
+    const userPrompt = `תיק ההשקעות שלי:
+${portfolioLines}
+${totalVal} | ${realized}
+${benchmarks ? `
+מדדי ייחוס: ${benchmarks}` : ""}
+${newsContext ? `
+חדשות שוק אחרונות:
+${newsContext}` : ""}
+
+שאלה: ${agentQuery}`;
+
     try {
       const resp = await rateLimitedFetch({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 500,
-          messages: [{
-            role: "user",
-            content: `אתה יועץ השקעות חכם. הנה תיק ההשקעות של המשתמש:
-
-${context}
-${realized}
-
-שאלה: ${agentQuery}
-
-ענה בעברית, ממוקד ומעשי. השתמש בחיפוש אינטרנט אם צריך מידע עדכני. סיים עם המלצה אחת ברורה.`
-          }]
+          max_tokens: 600,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }]
         });
       const data = await resp.json();
       const text = (data.content||[]).map(b=>b.text||"").join("");
