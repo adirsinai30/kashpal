@@ -1636,15 +1636,12 @@ function InvestSection() {
     if (!tickers.length) return;
     setPricesLoading(true); setPricesError("");
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/anthropic", {
         method: "POST",
-        headers: { "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 800,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: [{
             role: "user",
             content: `Search for current live market prices for these tickers: ${tickers.join(", ")}.
@@ -1669,15 +1666,12 @@ Use real-time prices from today.`
     const topics  = [...customTopics, ...watchlist].join(", ");
     const query   = customQuery || `${tickers}, ${topics}, שוק ההון`;
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/anthropic", {
         method: "POST",
-        headers: { "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1500,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: [{
             role: "user",
             content: `Search for the latest financial news today about: ${query}.
@@ -1711,15 +1705,12 @@ Include 6-8 items, mix of Hebrew and international sources.`
     setSummaryLoading(true);
     const tickers = assets.map(a => extractTicker(a.security)).join(", ");
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/anthropic", {
         method: "POST",
-        headers: { "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 600,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: [{
             role: "user",
             content: `Search for today's market summary and news about: ${tickers}.
@@ -1765,15 +1756,12 @@ Be direct and practical. No headers, just flowing text.`
     }).join("\n");
     const realized = `סך רווח ממומש: ${totalRealized>=0?"+":""}${fmt(totalRealized)}`;
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/anthropic", {
         method: "POST",
-        headers: { "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1200,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: [{
             role: "user",
             content: `אתה יועץ השקעות חכם. הנה תיק ההשקעות של המשתמש:
