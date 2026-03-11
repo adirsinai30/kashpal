@@ -436,7 +436,9 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
   const [spForm,setSpForm]=useState(blankSp);
   const totalBudget=cats.reduce((s,c)=>s+c.budget,0);
   const regularTotal=expenses.reduce((s,e)=>s+e.amount,0);
-  const combinedTotal=regularTotal+monthSpecialTotal;
+  // Compute fresh from specialItems so new additions reflect immediately
+  const liveSpecialTotal=specialItems.filter(i=>{const d=new Date(i.date);return d.getMonth()===month&&d.getFullYear()===year;}).reduce((s,i)=>s+toILS(i),0);
+  const combinedTotal=regularTotal+liveSpecialTotal;
   const catSpent=id=>expenses.filter(e=>e.catId===id).reduce((s,e)=>s+e.amount,0);
   const adir=expenses.filter(e=>e.who==="א").reduce((s,e)=>s+e.amount,0);
   const sapir=expenses.filter(e=>e.who==="ס").reduce((s,e)=>s+e.amount,0);
@@ -466,17 +468,16 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
         ))}
       </div>
       {expMode==="regular"&&(<>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{fontSize:14,fontWeight:600,color:T.text}}>הוצאות שוטפות</div>
+        <div style={{display:"flex",justifyContent:"end",alignItems:"center"}}>
           <Btn onClick={()=>setShowAdd(true)} style={{padding:"8px 16px",fontSize:13,display:"flex",alignItems:"center",gap:5}}><Icon name="plus" size={14} color="#fff"/>הוספה</Btn>
         </div>
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
             <div>
-              <div style={{fontSize:11,color:T.textSub,fontWeight:600,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>סה״כ הוצאות</div>
+              <div style={{fontSize:11,color:T.textSub,fontWeight:600,letterSpacing:1,marginBottom:6,textTransform:"uppercase"}}>סה"כ הוצאות</div>
               <div style={{fontSize:34,fontWeight:400,color:T.text,fontFamily:T.display,letterSpacing:-1}}>{fmt(combinedTotal)}</div>
               <div style={{fontSize:12,color:T.textSub,marginTop:4}}>מתוך {fmt(totalBudget)} תקציב</div>
-              {monthSpecialTotal>0&&<div style={{fontSize:11,color:T.navyMid,marginTop:3}}>כולל {fmt(monthSpecialTotal)} הוצאות מיוחדות</div>}
+              {liveSpecialTotal>0&&<div style={{fontSize:11,color:T.navyMid,marginTop:3}}>כולל {fmt(liveSpecialTotal)} הוצאות מיוחדות</div>}
             </div>
             <div style={{textAlign:"left"}}>
               <div style={{fontSize:28,fontWeight:600,color:combinedTotal>totalBudget?T.danger:T.navy,fontFamily:T.display}}>{Math.round((combinedTotal/(totalBudget||1))*100)}%</div>
@@ -532,14 +533,19 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
         {showAdd&&<AddExpenseDrawer cats={cats} onAdd={e=>setExpenses([e,...expenses])} onClose={()=>setShowAdd(false)}/>}
       </>)}
       {expMode==="special"&&(<>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div>
-            <div style={{fontSize:11,color:T.textSub,fontWeight:600,letterSpacing:1}}>{showAll?"סה״כ הכל":"סה״כ בתקופה"}</div>
-            <div style={{fontSize:28,fontWeight:400,fontFamily:T.display,color:T.text}}>{fmt(specialTotal)}</div>
-            <button onClick={()=>setShowAll(v=>!v)} style={{marginTop:6,fontSize:11,color:showAll?T.navy:T.textSub,fontFamily:T.font,background:showAll?T.navyLight:"transparent",border:`1px solid ${showAll?T.navyBorder:T.border}`,borderRadius:99,padding:"4px 12px",cursor:"pointer",fontWeight:600}}>{showAll?"חזרה לתקופה":"צפייה בהכל"}</button>
-          </div>
+        <div style={{display:"flex",justifyContent:"end",alignItems:"center"}}>
           <Btn onClick={openAddSp} style={{padding:"8px 16px",display:"flex",alignItems:"center",gap:4}}><Icon name="plus" size={13} color="#fff"/>הוספה</Btn>
-        </div>
+          </div>
+        <Card style={{background:"rgb(235, 240, 247)",border:"1px solid rgb(195, 212, 232)",padding:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:11,color:"#0369a1",fontWeight:700,letterSpacing:1,marginBottom:4}}>{showAll?"סה\"כ הוצאות מיוחדות":"סה\"כ הוצאות מיוחדות החודש"}</div>
+              <div style={{fontSize:34,fontWeight:400,fontFamily:T.display,color:"#0c4a6e",letterSpacing:-1}}>{fmt(specialTotal)}</div>
+              {periodSpecial.length>0&&<div style={{fontSize:11,color:"#0369a1",marginTop:3}}>{periodSpecial.length} הוצאות</div>}
+              <button onClick={()=>setShowAll(v=>!v)} style={{marginTop:8,fontSize:11,color:"rgb(30, 58, 95)",fontFamily:T.font,background:"rgba(255,255,255,0.5)",border:"1px solid rgb(30, 58, 95)",borderRadius:99,padding:"4px 12px",cursor:"pointer",fontWeight:600}}>{showAll?"חזרה לתקופה":"צפייה בהכל"}</button>
+            </div>
+          </div>
+        </Card>
         {showSpecialForm&&(
           <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight}}>
             <div style={{fontSize:13,fontWeight:600,color:T.navy,marginBottom:12}}>{editSpecialId?"עריכת הוצאה":"הוצאה מיוחדת חדשה"}</div>
@@ -575,29 +581,41 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
 }
 
 function GroceryTab(){
-  const [grocery,setGrocery]=useStorage("kp-grocery",DEFAULT_GROCERY);
-  const [newItem,setNewItem]=useState({name:"",qty:"1",price:""});
+  const LISTS_KEY="kp-grocery-lists";
+  const [lists,setLists]=useStorage(LISTS_KEY,[{id:"default",name:"רשימה ראשית",items:DEFAULT_GROCERY}]);
+  const [activeListId,setActiveListId]=useStorage("kp-grocery-active","default");
+  const [newItem,setNewItem]=useState({name:"",qty:"1"});
   const [scanMsg,setScanMsg]=useState("");
   const [confirmClear,setConfirmClear]=useState(false);
+  const [previewItems,setPreviewItems]=useState(null); // null = no preview
+  const [editingListName,setEditingListName]=useState(false);
+  const [newListName,setNewListName]=useState("");
+  const [showNewList,setShowNewList]=useState(false);
   const fileRef=useRef();
-  const add=()=>{if(!newItem.name.trim())return;setGrocery([...grocery,{id:uid(),...newItem,checked:false,price:+newItem.price||""}]);setNewItem({name:"",qty:"1",price:""});};
+
+  const activeList=lists.find(l=>l.id===activeListId)||lists[0]||{id:"default",name:"רשימה",items:[]};
+  const grocery=activeList.items||[];
+  const setGrocery=items=>setLists(lists.map(l=>l.id===activeList.id?{...l,items}:l));
+
+  const add=()=>{
+    if(!newItem.name.trim())return;
+    setGrocery([...grocery,{id:uid(),name:newItem.name.trim(),qty:newItem.qty||"1",checked:false}]);
+    setNewItem({name:"",qty:"1"});
+  };
   const toggle=id=>setGrocery(grocery.map(g=>g.id===id?{...g,checked:!g.checked}:g));
   const remove=id=>setGrocery(grocery.filter(g=>g.id!==id));
   const uncheckAll=()=>setGrocery(grocery.map(g=>({...g,checked:false})));
   const clearDone=()=>{setGrocery(grocery.filter(g=>!g.checked));setConfirmClear(false);};
-  const total=grocery.filter(g=>!g.checked).reduce((s,g)=>s+(+g.price||0)*(+g.qty||1),0);
   const active=grocery.filter(g=>!g.checked);
   const done=grocery.filter(g=>g.checked);
-  const COL_QTY=52,COL_PRICE=90;
+  const COL_QTY=60;
 
   const handleReceiptUpload=async e=>{
     const file=e.target.files?.[0];if(!file)return;
-    setScanMsg("קורא קבלה…");
+    setScanMsg("ניתוח קבלה...");
     try{
       let rawText="";
-
       if(file.type==="application/pdf"){
-        // PDF.js — extract text from PDF locally
         const pdfjsLib=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js").catch(()=>null);
         if(!pdfjsLib&&typeof window.pdfjsLib==="undefined"){
           setScanMsg("שגיאה: נדרש PDF.js");setTimeout(()=>setScanMsg(""),3000);return;
@@ -612,7 +630,6 @@ function GroceryTab(){
           rawText+=tc.items.map(i=>i.str).join(" ")+"\n";
         }
       } else {
-        // Image — Tesseract.js OCR locally
         if(!window.Tesseract){
           await new Promise((res,rej)=>{
             const s=document.createElement("script");
@@ -620,50 +637,132 @@ function GroceryTab(){
             s.onload=res;s.onerror=rej;document.head.appendChild(s);
           });
         }
-        setScanMsg("מזהה טקסט (OCR)…");
+        setScanMsg("זיהוי טקסט (OCR)…");
         const {data:{text}}=await window.Tesseract.recognize(file,["heb","eng"],{logger:()=>{}});
         rawText=text;
       }
 
-      // Parse raw text into grocery items
       setScanMsg("מפרסר פריטים…");
       const lines=rawText.split(/\n/).map(l=>l.trim()).filter(l=>l.length>1);
-      const priceRe=/(\d+[.,]\d{1,2}|\d+)\s*[₪$]?/;
       const qtyRe=/^(\d+)\s*[×xX*]/;
       const skipWords=["סה\"כ","total","subtotal","מע\"מ","vat","שלם","cash","change","תודה","thank","חשבונית","קבלה","תאריך","date","מספר","מחיר","price","כמות"];
-      const newItems=[];
+      const parsed=[];
       for(const line of lines){
         if(skipWords.some(w=>line.toLowerCase().includes(w.toLowerCase())))continue;
-        const priceMatch=line.match(priceRe);
-        const price=priceMatch?parseFloat(priceMatch[1].replace(",",".")):undefined;
         const qtyMatch=line.match(qtyRe);
         const qty=qtyMatch?qtyMatch[1]:"1";
-        // clean name: remove numbers/prices from ends
         let name=line.replace(/[\d.,₪$%]+/g," ").replace(/[×xX*]/g," ").trim().replace(/\s+/g," ");
         if(name.length<2||name.length>60)continue;
-        newItems.push({id:uid(),name,qty,price:price||"",checked:false});
+        parsed.push({id:uid(),name,qty,checked:false});
       }
-
-      if(newItems.length){
-        setGrocery(g=>[...g,...newItems]);
-        setScanMsg(`✓ נוספו ${newItems.length} פריטים`);
+      if(parsed.length){
+        setPreviewItems(parsed);
+        setScanMsg("");
       } else {
-        setScanMsg("לא זוהו פריטים — נסה תמונה ברורה יותר");
+        setScanMsg("לא זוהו פריטים - יש לנסות קובץ אחר");
+        setTimeout(()=>setScanMsg(""),4000);
       }
     }catch(err){
       console.error(err);
       setScanMsg("שגיאה בקריאת הקבלה");
+      setTimeout(()=>setScanMsg(""),4000);
     }
-    setTimeout(()=>setScanMsg(""),4000);e.target.value="";
+    e.target.value="";
   };
+
+  const confirmPreview=()=>{
+    if(!previewItems)return;
+    setGrocery([...grocery,...previewItems]);
+    setPreviewItems(null);
+  };
+
+  const createList=()=>{
+    if(!newListName.trim())return;
+    const id=uid();
+    setLists([...lists,{id,name:newListName.trim(),items:[]}]);
+    setActiveListId(id);
+    setNewListName("");
+    setShowNewList(false);
+  };
+
+  const deleteList=id=>{
+    if(lists.length<=1)return;
+    const remaining=lists.filter(l=>l.id!==id);
+    setLists(remaining);
+    if(activeListId===id)setActiveListId(remaining[0].id);
+  };
+
+  // ── Preview modal ──
+  if(previewItems){
+    return(
+      <div style={{display:"flex",flexDirection:"column",gap:12,animation:"fadeUp .25s ease"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,color:T.textSub,fontWeight:600,letterSpacing:1}}>תצוגה מקדימה</div>
+            <div style={{fontSize:22,fontWeight:300,fontFamily:T.display,color:T.text}}>{previewItems.length} פריטים זוהו</div>
+          </div>
+          <button onClick={()=>setPreviewItems(null)} style={{background:"none",border:"none",fontSize:20,color:T.textSub,cursor:"pointer"}}>✕</button>
+        </div>
+        <Card style={{padding:0,overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"center",padding:"9px 14px",background:T.bg,borderBottom:`1px solid ${T.border}`}}>
+            <div style={{flex:1,fontSize:10,color:T.textSub,fontWeight:700,textAlign:"right"}}>שם פריט</div>
+            <div style={{width:COL_QTY,fontSize:10,color:T.textSub,fontWeight:700,textAlign:"center"}}>כמות</div>
+            <div style={{width:22}}/>
+          </div>
+          {previewItems.map((item,i)=>(
+            <div key={item.id} style={{display:"flex",alignItems:"center",padding:"9px 14px",borderBottom:i<previewItems.length-1?`1px solid ${T.border}`:"none"}}>
+              <input
+                value={item.name}
+                onChange={e=>setPreviewItems(previewItems.map(x=>x.id===item.id?{...x,name:e.target.value}:x))}
+                style={{flex:1,background:"transparent",border:"none",borderBottom:`1px dashed ${T.border}`,padding:"3px 4px",color:T.text,fontSize:13,outline:"none",fontFamily:T.font,textAlign:"right"}}
+              />
+              <input
+                type="number"
+                value={item.qty}
+                onChange={e=>setPreviewItems(previewItems.map(x=>x.id===item.id?{...x,qty:e.target.value}:x))}
+                style={{width:COL_QTY,background:"transparent",border:"none",padding:"4px",color:T.textMid,fontSize:12,outline:"none",fontFamily:T.font,textAlign:"center"}}
+              />
+              <button onClick={()=>setPreviewItems(previewItems.filter(x=>x.id!==item.id))} style={{background:"none",border:"none",color:T.border,cursor:"pointer",fontSize:17,lineHeight:1,width:22,textAlign:"center"}}>×</button>
+            </div>
+          ))}
+        </Card>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setPreviewItems(null)} style={{flex:1,padding:"11px",borderRadius:10,border:`1px solid ${T.border}`,background:"transparent",color:T.textMid,fontSize:13,fontFamily:T.font,fontWeight:600,cursor:"pointer"}}>ביטול</button>
+          <Btn onClick={confirmPreview} style={{flex:2,padding:"11px",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            <Icon name="plus" size={14} color="#fff"/>הוסף {previewItems.length} פריטים לרשימה
+          </Btn>
+        </div>
+      </div>
+    );
+  }
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:12,animation:"fadeUp .25s ease"}}>
       {confirmClear&&<ConfirmModal message={`למחוק ${done.length} פריטים שנרכשו?`} onConfirm={clearDone} onCancel={()=>setConfirmClear(false)}/>}
+
+      {/* List selector */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+        {lists.map(l=>(
+          <div key={l.id} style={{display:"flex",alignItems:"center",gap:0,borderRadius:99,border:`1.5px solid ${activeList.id===l.id?T.navy:T.border}`,background:activeList.id===l.id?T.navyLight:"transparent",overflow:"hidden"}}>
+            <button onClick={()=>setActiveListId(l.id)} style={{padding:"5px 12px",background:"transparent",border:"none",fontFamily:T.font,fontSize:12,fontWeight:600,color:activeList.id===l.id?T.navy:T.textSub,cursor:"pointer"}}>{l.name}</button>
+            {lists.length>1&&<button onClick={()=>deleteList(l.id)} style={{padding:"5px 7px 5px 2px",background:"transparent",border:"none",color:T.textSub,cursor:"pointer",fontSize:13,lineHeight:1}}>×</button>}
+          </div>
+        ))}
+        {showNewList
+          ? <div style={{display:"flex",gap:5,alignItems:"center"}}>
+              <Inp placeholder="שם הרשימה" value={newListName} onChange={e=>setNewListName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")createList();if(e.key==="Escape")setShowNewList(false);}} style={{width:130,fontSize:12,padding:"6px 10px"}} autoFocus/>
+              <Btn onClick={createList} style={{padding:"6px 10px",fontSize:12}}>שמור</Btn>
+              <button onClick={()=>setShowNewList(false)} style={{background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:16}}>✕</button>
+            </div>
+          : <button onClick={()=>setShowNewList(true)} style={{padding:"5px 10px",borderRadius:99,border:`1.5px dashed ${T.border}`,background:"transparent",fontFamily:T.font,fontSize:12,color:T.textSub,cursor:"pointer"}}>+ רשימה חדשה</button>
+        }
+      </div>
+
+      {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <div style={{fontSize:11,color:T.textSub,fontWeight:600,letterSpacing:1}}>פריטים שנותרו</div>
-          <div style={{fontSize:26,fontWeight:300,fontFamily:T.display,color:T.text}}>{active.length} פריטים{total>0&&<span style={{fontSize:16,color:T.navy}}> · {fmt(total)}</span>}</div>
+          <div style={{fontSize:26,fontWeight:300,fontFamily:T.display,color:T.text}}>{active.length} פריטים</div>
         </div>
         {done.length>0&&(
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -677,33 +776,34 @@ function GroceryTab(){
           </div>
         )}
       </div>
+
+      {/* Add item */}
       <Card style={{padding:12}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <Inp placeholder="שם פריט" value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} onKeyDown={e=>e.key==="Enter"&&add()} style={{flex:1}}/>
           <input type="number" placeholder="כמות" value={newItem.qty} onChange={e=>setNewItem({...newItem,qty:e.target.value})} style={{width:COL_QTY,background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 4px",color:T.text,fontSize:13,outline:"none",fontFamily:T.font,textAlign:"center"}}/>
-          <div style={{width:COL_PRICE,display:"flex",alignItems:"center",background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden"}}>
-            <span style={{padding:"10px 6px",fontSize:12,color:T.textSub,background:"#eeebe4",borderLeft:`1px solid ${T.border}`,flexShrink:0,lineHeight:1}}>₪</span>
-            <input type="number" placeholder="מחיר" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} style={{flex:1,minWidth:0,background:"transparent",border:"none",padding:"10px 4px",color:T.text,fontSize:13,outline:"none",fontFamily:T.font,textAlign:"center"}}/>
-          </div>
           <Btn onClick={add} style={{padding:"10px 12px",flexShrink:0}}><Icon name="plus" size={14} color="#fff"/></Btn>
         </div>
       </Card>
+
+      {/* Receipt upload */}
       <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleReceiptUpload} style={{display:"none"}}/>
       <Card style={{border:`1.5px dashed ${T.border}`,background:T.bg,padding:14,cursor:"pointer"}} onClick={()=>fileRef.current?.click()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           <Icon name="photo" size={16} color={T.textSub}/>
-          <span style={{fontSize:13,fontWeight:500,color:T.textSub}}>{scanMsg||"העלאת קבלה לחילוץ פריטים אוטומטי"}</span>
-          {scanMsg&&scanMsg.startsWith("מנתח")&&<div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>}
+          <span style={{fontSize:13,fontWeight:500,color:T.textSub}}>{scanMsg||"העלאת קבלה — תמונה או PDF"}</span>
+          {scanMsg&&!scanMsg.startsWith("✓")&&!scanMsg.startsWith("לא")&&<div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>}
         </div>
-        {!scanMsg&&<div style={{fontSize:11,color:T.textSub,marginTop:3,textAlign:"center"}}>מופעל על ידי Claude AI</div>}
+        {!scanMsg&&<div style={{fontSize:11,color:T.textSub,marginTop:3,textAlign:"center"}}>חילוץ פריטים אוטומטי + תצוגה מקדימה לפני שמירה</div>}
       </Card>
+
+      {/* Items list */}
       <Card style={{padding:0,overflow:"hidden"}}>
         <div style={{display:"flex",alignItems:"center",padding:"9px 14px",background:T.bg,borderBottom:`1px solid ${T.border}`}}>
           <div style={{width:24,flexShrink:0}}/>
           <div style={{flex:1,fontSize:10,color:T.textSub,fontWeight:700,letterSpacing:.5,textAlign:"right",paddingRight:10}}>פריט</div>
           <div style={{width:1,height:14,background:T.border,marginLeft:8,flexShrink:0}}/>
           <div style={{width:COL_QTY+4,fontSize:10,color:T.textSub,fontWeight:700,textAlign:"center",flexShrink:0}}>כמות</div>
-          <div style={{width:COL_PRICE+12,fontSize:10,color:T.textSub,fontWeight:700,textAlign:"center",flexShrink:0}}>מחיר ממוצע</div>
           <div style={{width:22,flexShrink:0}}/>
         </div>
         {active.map((g,i)=>(
@@ -712,10 +812,6 @@ function GroceryTab(){
             <div style={{flex:1,fontSize:13,color:T.text,fontWeight:500,textAlign:"right",paddingRight:10,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.name}</div>
             <div style={{width:1,alignSelf:"stretch",background:T.border,marginLeft:8,flexShrink:0}}/>
             <input type="number" value={g.qty||""} onChange={e=>setGrocery(grocery.map(x=>x.id===g.id?{...x,qty:e.target.value}:x))} style={{width:COL_QTY+4,background:"transparent",border:"none",padding:"4px",color:T.textMid,fontSize:12,outline:"none",fontFamily:T.font,textAlign:"center",flexShrink:0}}/>
-            <div style={{width:COL_PRICE+12,display:"flex",alignItems:"center",gap:3,justifyContent:"center",flexShrink:0}}>
-              <span style={{fontSize:11,color:T.textSub,flexShrink:0}}>₪</span>
-              <input type="number" value={g.price||""} onChange={e=>setGrocery(grocery.map(x=>x.id===g.id?{...x,price:+e.target.value}:x))} style={{width:54,background:"transparent",border:"none",borderBottom:`1px solid ${T.border}`,padding:"4px 2px",color:T.textMid,fontSize:12,outline:"none",fontFamily:T.font,textAlign:"center"}}/>
-            </div>
             <button onClick={()=>remove(g.id)} style={{background:"none",border:"none",color:T.border,cursor:"pointer",fontSize:17,lineHeight:1,width:22,textAlign:"center",flexShrink:0}}>×</button>
           </div>
         ))}
@@ -727,9 +823,6 @@ function GroceryTab(){
               <div style={{flex:1,fontSize:13,color:T.textSub,textDecoration:"line-through",textAlign:"right",paddingRight:10}}>{g.name}</div>
               <div style={{width:1,alignSelf:"stretch",background:T.border,marginLeft:8,flexShrink:0}}/>
               <span style={{width:COL_QTY+4,fontSize:12,color:T.textSub,textAlign:"center",flexShrink:0}}>{g.qty}</span>
-              <div style={{width:COL_PRICE+12,display:"flex",alignItems:"center",gap:3,justifyContent:"center",flexShrink:0}}>
-                {g.price?<><span style={{fontSize:11,color:T.textSub}}>₪</span><span style={{fontSize:12,color:T.textSub}}>{g.price}</span></>:null}
-              </div>
               <div style={{width:22,flexShrink:0}}/>
             </div>
           ))}
@@ -739,9 +832,6 @@ function GroceryTab(){
     </div>
   );
 }
-
-// ─── INVEST SECTION v3 ───────────────────────────────────────────────────────
-// העתק את כל הפונקציה הזו והחלף בה את InvestSection הקיים
 
 function InvestSection() {
 
