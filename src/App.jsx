@@ -189,7 +189,7 @@ function ConfirmModal({message,onConfirm,onCancel}){
       <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:18,padding:28,maxWidth:320,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.15)",animation:"fadeUp .2s ease",fontFamily:T.font,direction:"rtl"}}>
         <div style={{fontSize:15,fontWeight:600,color:T.text,marginBottom:8,textAlign:"center"}}>אישור מחיקה</div>
         <div style={{fontSize:13,color:T.textMid,textAlign:"center",lineHeight:1.6,marginBottom:22}}>{message}</div>
-        <div style={{display:"flex",gap:10}}><Btn variant="danger" onClick={onConfirm} style={{flex:1,padding:"11px"}}>מחק</Btn><Btn variant="secondary" onClick={onCancel} style={{flex:1,padding:"11px"}}>ביטול</Btn></div>
+        <div style={{display:"flex",gap:10}}><Btn variant="danger" onClick={onConfirm} style={{flex:1,padding:"11px"}}>מחיקה</Btn><Btn variant="secondary" onClick={onCancel} style={{flex:1,padding:"11px"}}>ביטול</Btn></div>
       </div>
     </div>
   );
@@ -288,8 +288,8 @@ function RichTextEditor({value,onChange,placeholder,minHeight=80}){
         {toolBtn("I",()=>exec("italic"),"נטוי")}
         {toolBtn("U",()=>exec("underline"),"קו תחתון")}
         <div style={{width:1,height:18,background:T.border,margin:"0 2px"}}/>
-        {toolBtn("• רשימה",()=>exec("insertUnorderedList"),"רשימת בולטים")}
-        {toolBtn("1. רשימה",()=>exec("insertOrderedList"),"רשימה ממוספרת")}
+        {toolBtn("● ☰",()=>exec("insertUnorderedList"),"רשימת תבליטים")}
+        {toolBtn("1. ☰",()=>exec("insertOrderedList"),"רשימה ממוספרת")}
         <div style={{width:1,height:18,background:T.border,margin:"0 2px"}}/>
         <div style={{position:"relative"}}>
           <button onMouseDown={ev=>{ev.preventDefault();setShowEmoji(v=>!v);}}
@@ -321,7 +321,7 @@ function RichTextEditor({value,onChange,placeholder,minHeight=80}){
 function AddExpenseDrawer({cats,onAdd,onClose,initData=null}){
   const [step,setStep]=useState(initData?1:0);
   const [form,setForm]=useState(initData||{amount:"",desc:"",catId:cats[0]?.id||"",who:"א",date:today()});
-  const np=[["7","8","9"],["4","5","6"],["1","2","3"],["⌫","0","✓"]];
+  const np=[["1","2","3"],["4","5","6"],["7","8","9"],["⌫","0","✓"]];
   const press=k=>{
     if(k==="⌫"){setForm(f=>({...f,amount:f.amount.slice(0,-1)}));return;}
     if(k==="✓"){if(form.amount)setStep(1);return;}
@@ -368,7 +368,7 @@ function PinScreen({onUnlock}){
   const [shaking,setShaking]=useState(false);
   const [attempts,setAttempts]=useState(0);
   const [locked,setLocked]=useState(false);
-  const np=[["7","8","9"],["4","5","6"],["1","2","3"],["⌫","0","✓"]];
+  const np=[["1","2","3"],["4","5","6"],["7","8","9"],["⌫","0","✓"]];
 
   const submit=useCallback((pinVal)=>{
     if(locked||shaking)return;
@@ -495,7 +495,7 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
       {expMode==="regular"&&(<>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:14,fontWeight:600,color:T.text}}>הוצאות שוטפות</div>
-          <Btn onClick={()=>setShowAdd(true)} style={{padding:"8px 16px",fontSize:13,display:"flex",alignItems:"center",gap:5}}><Icon name="plus" size={14} color="#fff"/>הוספת הוצאה</Btn>
+          <Btn onClick={()=>setShowAdd(true)} style={{padding:"8px 16px",fontSize:13,display:"flex",alignItems:"center",gap:5}}><Icon name="plus" size={14} color="#fff"/>הוספה</Btn>
         </div>
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
@@ -662,7 +662,7 @@ function GroceryTab(){
             {/* מחיקת נרכשו — אייקון אשפה + אישור */}
             <button onClick={()=>setConfirmClear(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",borderRadius:10,border:`1px solid ${T.dangerBorder}`,background:T.dangerBg,color:T.danger,fontSize:12,fontFamily:T.font,fontWeight:600,cursor:"pointer"}}>
               <Icon name="trash" size={13} color={T.danger}/>
-              נקה שנרכשו
+              מחיקה
             </button>
           </div>
         )}
@@ -806,7 +806,7 @@ function RecipesTab({menuConceptsList}){
     return[];
   };
 
-  const blankR={type:"recipe",name:"",categories:[],servings:"4",prepTime:"",cookTime:"",ingredients:[{item:"",qty:"",unit:""}],steps:[""],prepNotes:"",concepts:[]};
+  const blankR={type:"recipe",name:"",categories:[],servings:"",prepTime:"",cookTime:"",ingredients:[{item:"",qty:"",unit:""}],steps:[""],prepNotes:"",concepts:[]};
   // menu has sections: [{id,title,dishes:[]}]
   const blankM={type:"menu",name:"",categories:[],servings:"",concepts:[],sections:[{id:uid(),title:"מנות ראשונות",dishes:[""]},{id:uid(),title:"עיקריות",dishes:[""]},{id:uid(),title:"קינוחים",dishes:[""]}],notes:""};
 
@@ -875,17 +875,18 @@ function RecipesTab({menuConceptsList}){
             <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight}}>
               <div style={{fontSize:13,fontWeight:600,color:T.navy,marginBottom:12}}>{editId?(mode==="recipe"?"עריכת מתכון":"עריכת תפריט"):(mode==="recipe"?"מתכון חדש":"תפריט חדש")}</div>
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <Inp placeholder="שם" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+
+                  <div style={{display:"flex",gap:8}}>
+  <Inp placeholder="תיאור" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={{flex:3}}/>
+  <Inp type="number" placeholder="כמות אנשים" value={form.servings} onChange={e=>setForm({...form,servings:e.target.value})} style={{flex:1}}/>
+  {mode==="recipe"&&<Inp type="number" placeholder="זמן הכנה (דק׳)" value={form.prepTime} onChange={e=>setForm({...form,prepTime:e.target.value})} style={{flex:1}}/>}
+</div>
                 {/* Multi-select categories */}
-                <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>סוג ארוחה (בחירה מרובה)</div>
+                <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>סוג ארוחה</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {RCATS.map(c=><button key={c} onClick={()=>toggleCat(c)} style={{padding:"5px 11px",borderRadius:99,fontFamily:T.font,fontSize:11,cursor:"pointer",border:`1px solid ${(form.categories||[]).includes(c)?T.navy:T.border}`,background:(form.categories||[]).includes(c)?T.navy:"transparent",color:(form.categories||[]).includes(c)?"#fff":T.textMid}}>{c}</button>)}
                 </div>
-                <div style={{display:"flex",gap:8}}>
-                  <Inp type="number" placeholder="אנשים" value={form.servings} onChange={e=>setForm({...form,servings:e.target.value})} style={{flex:1}}/>
-                  {mode==="recipe"&&<><Inp type="number" placeholder="הכנה (דק׳)" value={form.prepTime} onChange={e=>setForm({...form,prepTime:e.target.value})} style={{flex:1}}/><Inp type="number" placeholder="בישול (דק׳)" value={form.cookTime} onChange={e=>setForm({...form,cookTime:e.target.value})} style={{flex:1}}/></>}
-                </div>
-                <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>קונספט</div>
+                <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>סגנון</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{menuConceptsList.map(c=><button key={c} onClick={()=>toggleC(c)} style={{padding:"5px 11px",borderRadius:99,fontFamily:T.font,fontSize:11,cursor:"pointer",border:`1px solid ${(form.concepts||[]).includes(c)?T.navyMid:T.border}`,background:(form.concepts||[]).includes(c)?T.navyMid:"transparent",color:(form.concepts||[]).includes(c)?"#fff":T.textMid}}>{c}</button>)}</div>
 
                 {mode==="recipe"&&(<>
@@ -901,13 +902,13 @@ function RecipesTab({menuConceptsList}){
 
                 {mode==="menu"&&(<>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>סקשנים (חלקי תפריט)</div>
-                    <button onClick={addSection} style={{fontSize:11,color:T.navy,fontFamily:T.font,background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"4px 12px",cursor:"pointer",fontWeight:600}}>+ סקשן חדש</button>
+                    <div style={{fontSize:11,color:T.textMid,fontWeight:600}}>חלוקת התפריט</div>
+                    <button onClick={addSection} style={{fontSize:11,color:T.navy,fontFamily:T.font,background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"4px 12px",cursor:"pointer",fontWeight:600}}>+ הוספת חלק</button>
                   </div>
                   {(form.sections||[]).map(sec=>(
                     <div key={sec.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:12}}>
                       <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
-                        <Inp placeholder="שם הסקשן (למשל: מנות ראשונות)" value={sec.title} onChange={e=>updateSection(sec.id,"title",e.target.value)} style={{flex:1}}/>
+                        <Inp placeholder="שם החלק (למשל: מנות ראשונות)" value={sec.title} onChange={e=>updateSection(sec.id,"title",e.target.value)} style={{flex:1}}/>
                         {(form.sections||[]).length>1&&<button onClick={()=>removeSection(sec.id)} style={{background:"none",border:`1px solid ${T.dangerBorder}`,borderRadius:8,padding:"6px 8px",cursor:"pointer",display:"flex",alignItems:"center"}}><Icon name="trash" size={12} color={T.danger}/></button>}
                       </div>
                       {sec.dishes.map((d,di)=>(
@@ -1430,15 +1431,1032 @@ function ReportsSection({expenses,specialItems=[],cats,month,year,setMonth,setYe
 }
 
 // ─── SECTION: השקעות ─────────────────────────────────────────────────────────
-function InvestSection(){
-  return(
-    <div style={{padding:16}}>
-      <Card style={{padding:40,textAlign:"center"}}>
-        <Icon name="chart" size={32} color={T.navy}/>
-        <div style={{fontSize:22,fontWeight:300,fontFamily:T.display,color:T.text,marginTop:16,marginBottom:8}}>ההשקעות שלנו</div>
-        <div style={{fontSize:13,color:T.textSub,lineHeight:1.8,maxWidth:280,margin:"0 auto"}}>מעקב תיק מסחר, חדשות יומיות, ניתוח ביצועים וסוכן חכם — בפיתוח.</div>
-        <div style={{marginTop:20,display:"inline-block",background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"5px 16px",fontSize:12,color:T.navy,fontWeight:600}}>בקרוב</div>
+// function InvestSection(){
+//   return(
+//     <div style={{padding:16}}>
+//       <Card style={{padding:40,textAlign:"center"}}>
+//         <Icon name="chart" size={32} color={T.navy}/>
+//         <div style={{fontSize:22,fontWeight:300,fontFamily:T.display,color:T.text,marginTop:16,marginBottom:8}}>ההשקעות שלנו</div>
+//         <div style={{fontSize:13,color:T.textSub,lineHeight:1.8,maxWidth:280,margin:"0 auto"}}>מעקב תיק מסחר, חדשות יומיות, ניתוח ביצועים וסוכן חכם — בפיתוח.</div>
+//         <div style={{marginTop:20,display:"inline-block",background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"5px 16px",fontSize:12,color:T.navy,fontWeight:600}}>בקרוב</div>
+//       </Card>
+//     </div>
+//   );
+// }
+
+// ─── INVEST SECTION v3 ───────────────────────────────────────────────────────
+// העתק את כל הפונקציה הזו והחלף בה את InvestSection הקיים
+
+function InvestSection() {
+
+  // ── Storage ──
+  const [assets, setAssets] = useStorage("inv-assets3", [
+    {
+      id: "a1", security: "Apple (AAPL)", currency: "USD", rateUsed: 3.68,
+      purchases: [
+        { id: "p1", shares: 10, price: 155, commission: 5, date: "2025-06-01" },
+        { id: "p2", shares: 5,  price: 170, commission: 5, date: "2025-11-15" },
+      ],
+      sales: []
+    },
+    {
+      id: "a2", security: "Vanguard S&P 500 (VOO)", currency: "USD", rateUsed: 3.68,
+      purchases: [{ id: "p3", shares: 5, price: 410, commission: 8, date: "2025-08-20" }],
+      sales: []
+    },
+    {
+      id: "a3", security: "Bitcoin (BTC)", currency: "USD", rateUsed: 3.68,
+      purchases: [{ id: "p4", shares: 0.05, price: 62000, commission: 20, date: "2025-03-10" }],
+      sales: [{ id: "s1", shares: 0.02, price: 71000, commission: 15, date: "2026-01-05" }]
+    },
+  ]);
+
+  const [watchlist,    setWatchlist]    = useStorage("inv-watchlist",   ["AAPL","VOO","BTC","NVDA","TSLA"]);
+  const [customTopics, setCustomTopics] = useStorage("inv-topics",      ["AI","ריביות","נאסד״ק"]);
+  const [alertThresh,  setAlertThresh]  = useStorage("inv-alert-thresh", 3);
+  const [sentimentLog, setSentimentLog] = useStorage("inv-sentiment-log", []);
+  const [agentHistory, setAgentHistory] = useStorage("inv-agent-history", []);
+
+  // ── UI state ──
+  const [tab,           setTab]           = useState("portfolio");
+  const [portfolioView, setPortfolioView] = useState("active");   // "active" | "sold"
+  const [expandedId,    setExpandedId]    = useState(null);
+  const [showAssetForm, setShowAssetForm] = useState(false);
+  const [editAssetId,   setEditAssetId]   = useState(null);
+  const [addPurchaseId, setAddPurchaseId] = useState(null);  // assetId for add-purchase form
+  const [addSaleId,     setAddSaleId]     = useState(null);  // assetId for add-sale form
+  const [confirmAsset,  setConfirmAsset]  = useState(null);
+  const [confirmPurch,  setConfirmPurch]  = useState(null);  // {assetId, purchaseId}
+  const [confirmSale,   setConfirmSale]   = useState(null);  // {assetId, saleId}
+
+  // ── Prices / news / agent ──
+  const [prices,        setPrices]        = useState({});
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [pricesError,   setPricesError]   = useState("");
+  const [lastUpdated,   setLastUpdated]   = useState(null);
+  const [news,          setNews]          = useState([]);
+  const [newsLoading,   setNewsLoading]   = useState(false);
+  const [newsSearch,    setNewsSearch]    = useState("");
+  const [dailySummary,  setDailySummary]  = useState("");
+  const [summaryLoading,setSummaryLoading]= useState(false);
+  const [agentQuery,    setAgentQuery]    = useState("");
+  const [agentResponse, setAgentResponse] = useState("");
+  const [agentLoading,  setAgentLoading]  = useState(false);
+
+  // ── Forms ──
+  const blankAsset    = { security:"", shares:"", price:"", commission:"0", date:today(), currency:"USD", rateUsed:"3.68" };
+  const blankPurchase = { shares:"", price:"", commission:"0", date:today() };
+  const blankSale     = { shares:"", price:"", commission:"0", date:today() };
+  const [assetForm,    setAssetForm]    = useState(blankAsset);
+  const [purchaseForm, setPurchaseForm] = useState(blankPurchase);
+  const [saleForm,     setSaleForm]     = useState(blankSale);
+
+  // ── Watchlist / topics UI ──
+  const [newWatch, setNewWatch] = useState("");
+  const [newTopic, setNewTopic] = useState("");
+
+  // ══════════════════════════════════════════════════════
+  //  CALCULATIONS
+  // ══════════════════════════════════════════════════════
+
+  function extractTicker(security) {
+    const m = security.match(/\(([^)]+)\)/);
+    return m ? m[1].toUpperCase() : security.split(" ")[0].toUpperCase();
+  }
+
+  const totalShares = a =>
+    a.purchases.reduce((s,p) => s + +p.shares, 0) -
+    (a.sales||[]).reduce((s,p) => s + +p.shares, 0);
+
+  const avgBuyPrice = a => {
+    const totalCost   = a.purchases.reduce((s,p) => s + +p.shares * (+p.price + (+p.commission||0)/+p.shares), 0);
+    const totalShrs   = a.purchases.reduce((s,p) => s + +p.shares, 0);
+    return totalShrs > 0 ? totalCost / totalShrs : 0;
+  };
+
+  // cost basis = purchases only (including commissions), in ILS
+  const costBasisILS = a => {
+    const rate = a.currency !== "ILS" ? +a.rateUsed : 1;
+    return a.purchases.reduce((s,p) => s + (+p.shares * +p.price + (+p.commission||0)) * rate, 0);
+  };
+
+  const currentPriceFor = a => prices[extractTicker(a.security)] || null;
+
+  const currentValILS = a => {
+    const price  = currentPriceFor(a);
+    const rate   = a.currency !== "ILS" ? +a.rateUsed : 1;
+    const shrs   = totalShares(a);
+    return price ? price * shrs * rate : avgBuyPrice(a) * shrs * rate;
+  };
+
+  const unrealizedPnLILS = a => currentValILS(a) - (costBasisILS(a) - soldCostILS(a));
+
+  // cost of sold shares (proportional to avg buy price)
+  const soldCostILS = a => {
+    const rate  = a.currency !== "ILS" ? +a.rateUsed : 1;
+    const avg   = avgBuyPrice(a);
+    return (a.sales||[]).reduce((s,p) => s + +p.shares * avg * rate, 0);
+  };
+
+  const realizedPnLILS = a => {
+    const rate = a.currency !== "ILS" ? +a.rateUsed : 1;
+    const avg  = avgBuyPrice(a);
+    return (a.sales||[]).reduce((s,p) => {
+      const saleRevenue = (+p.shares * +p.price - (+p.commission||0)) * rate;
+      const cost        = +p.shares * avg * rate;
+      return s + saleRevenue - cost;
+    }, 0);
+  };
+
+  const isSoldOut = a => totalShares(a) <= 0.000001;
+
+  // Grand totals (active positions only)
+  const activeAssets = assets.filter(a => !isSoldOut(a));
+  const soldAssets   = assets.filter(a => isSoldOut(a));
+  const totalPortfolio = activeAssets.reduce((s,a) => s + currentValILS(a), 0);
+  const totalCost      = activeAssets.reduce((s,a) => s + (costBasisILS(a) - soldCostILS(a)), 0);
+  const totalPnL       = totalPortfolio - totalCost;
+  const totalRealized  = assets.reduce((s,a) => s + realizedPnLILS(a), 0);
+
+  // ══════════════════════════════════════════════════════
+  //  ASSET / PURCHASE / SALE HANDLERS
+  // ══════════════════════════════════════════════════════
+
+  const openAddAsset = () => { setEditAssetId(null); setAssetForm(blankAsset); setShowAssetForm(true); };
+
+  const saveAsset = () => {
+    if (!assetForm.security || !assetForm.shares || !assetForm.price) return;
+    const purchase = { id: uid(), shares: +assetForm.shares, price: +assetForm.price, commission: +assetForm.commission||0, date: assetForm.date };
+    if (editAssetId) {
+      setAssets(assets.map(a => a.id === editAssetId
+        ? { ...a, security: assetForm.security, currency: assetForm.currency, rateUsed: +assetForm.rateUsed }
+        : a));
+    } else {
+      setAssets([...assets, { id: uid(), security: assetForm.security, currency: assetForm.currency, rateUsed: +assetForm.rateUsed, purchases: [purchase], sales: [] }]);
+    }
+    setShowAssetForm(false); setEditAssetId(null); setAssetForm(blankAsset);
+  };
+
+  const savePurchase = (assetId) => {
+    if (!purchaseForm.shares || !purchaseForm.price) return;
+    const p = { id: uid(), shares: +purchaseForm.shares, price: +purchaseForm.price, commission: +purchaseForm.commission||0, date: purchaseForm.date };
+    setAssets(assets.map(a => a.id === assetId ? { ...a, purchases: [...a.purchases, p] } : a));
+    setAddPurchaseId(null); setPurchaseForm(blankPurchase);
+  };
+
+  const saveSale = (assetId) => {
+    if (!saleForm.shares || !saleForm.price) return;
+    const asset = assets.find(a => a.id === assetId);
+    const avail = totalShares(asset);
+    if (+saleForm.shares > avail) return; // can't sell more than you have
+    const s = { id: uid(), shares: +saleForm.shares, price: +saleForm.price, commission: +saleForm.commission||0, date: saleForm.date };
+    setAssets(assets.map(a => a.id === assetId ? { ...a, sales: [...(a.sales||[]), s] } : a));
+    setAddSaleId(null); setSaleForm(blankSale);
+  };
+
+  const deletePurchase = ({assetId, purchaseId}) => {
+    setAssets(assets.map(a => a.id === assetId ? { ...a, purchases: a.purchases.filter(p => p.id !== purchaseId) } : a));
+    setConfirmPurch(null);
+  };
+
+  const deleteSale = ({assetId, saleId}) => {
+    setAssets(assets.map(a => a.id === assetId ? { ...a, sales: (a.sales||[]).filter(s => s.id !== saleId) } : a));
+    setConfirmSale(null);
+  };
+
+  // ══════════════════════════════════════════════════════
+  //  API CALLS
+  // ══════════════════════════════════════════════════════
+
+  const fetchPrices = async () => {
+    const tickers = [...new Set([
+      ...assets.map(a => extractTicker(a.security)),
+      ...watchlist
+    ])];
+    if (!tickers.length) return;
+    setPricesLoading(true); setPricesError("");
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 800,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `Search for current live market prices for these tickers: ${tickers.join(", ")}.
+Return ONLY valid JSON, no markdown, no explanation:
+{"TICKER": price_as_number, ...}
+Use real-time prices from today.`
+          }]
+        })
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text||"").join("");
+      const m = text.match(/\{[\s\S]*?\}/);
+      if (m) { setPrices(JSON.parse(m[0])); setLastUpdated(new Date()); }
+      else setPricesError("לא ניתן לקבל מחירים");
+    } catch { setPricesError("שגיאת חיבור"); }
+    setPricesLoading(false);
+  };
+
+  const fetchNews = async (customQuery = "") => {
+    setNewsLoading(true);
+    const tickers = assets.map(a => extractTicker(a.security)).join(", ");
+    const topics  = [...customTopics, ...watchlist].join(", ");
+    const query   = customQuery || `${tickers}, ${topics}, שוק ההון`;
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1500,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `Search for the latest financial news today about: ${query}.
+Return ONLY a JSON array (no markdown):
+[{"title":"headline","source":"name","sentiment":"positive|negative|neutral","symbol":"ticker or GENERAL","summary":"2-3 sentence summary in Hebrew"}]
+Include 6-8 items, mix of Hebrew and international sources.`
+          }]
+        })
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text||"").join("");
+      const m = text.match(/\[[\s\S]*\]/);
+      if (m) {
+        const parsed = JSON.parse(m[0]);
+        setNews(parsed);
+        // log sentiment for graph
+        const date = new Date().toISOString().slice(0,10);
+        const pos  = parsed.filter(n=>n.sentiment==="positive").length;
+        const neg  = parsed.filter(n=>n.sentiment==="negative").length;
+        const neu  = parsed.filter(n=>n.sentiment==="neutral").length;
+        setSentimentLog(prev => {
+          const filtered = prev.filter(l=>l.date!==date);
+          return [...filtered, {date, pos, neg, neu, total: parsed.length}].slice(-30);
+        });
+      }
+    } catch {}
+    setNewsLoading(false);
+  };
+
+  const fetchDailySummary = async () => {
+    setSummaryLoading(true);
+    const tickers = assets.map(a => extractTicker(a.security)).join(", ");
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 600,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `Search for today's market summary and news about: ${tickers}.
+Write a concise daily briefing in Hebrew (4-5 sentences) covering:
+1. Overall market mood today
+2. Key moves in the specific tickers
+3. One key risk or opportunity
+Be direct and practical. No headers, just flowing text.`
+          }]
+        })
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text||"").join("");
+      setDailySummary(text);
+    } catch { setDailySummary("שגיאה בטעינת הסיכום"); }
+    setSummaryLoading(false);
+  };
+
+  // price alert check
+  const priceAlerts = assets.flatMap(a => {
+    const ticker  = extractTicker(a.security);
+    const current = prices[ticker];
+    const avg     = avgBuyPrice(a);
+    if (!current || !avg) return [];
+    const changePct = ((current - avg) / avg) * 100;
+    if (Math.abs(changePct) >= alertThresh) {
+      return [{ security: a.security, ticker, changePct, current, avg }];
+    }
+    return [];
+  });
+
+  const runAgent = async () => {
+    if (!agentQuery.trim()) return;
+    setAgentLoading(true);
+    const context = assets.map(a => {
+      const ticker  = extractTicker(a.security);
+      const price   = prices[ticker];
+      const shrs    = totalShares(a);
+      const avg     = avgBuyPrice(a);
+      const valILS  = currentValILS(a);
+      const pnl     = unrealizedPnLILS(a);
+      return `${a.security}: ${shrs.toFixed(4)} יחידות | שער קנייה ממוצע $${avg.toFixed(2)} | שווי נוכחי ${fmt(valILS)} | רווח/הפסד ${pnl>=0?"+":""}${fmt(pnl)}`;
+    }).join("\n");
+    const realized = `סך רווח ממומש: ${totalRealized>=0?"+":""}${fmt(totalRealized)}`;
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1200,
+          tools: [{ type: "web_search_20250305", name: "web_search" }],
+          messages: [{
+            role: "user",
+            content: `אתה יועץ השקעות חכם. הנה תיק ההשקעות של המשתמש:
+
+${context}
+${realized}
+
+שאלה: ${agentQuery}
+
+ענה בעברית, ממוקד ומעשי. השתמש בחיפוש אינטרנט אם צריך מידע עדכני. סיים עם המלצה אחת ברורה.`
+          }]
+        })
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text||"").join("");
+      const entry = { id: uid(), q: agentQuery, a: text, date: new Date().toISOString() };
+      setAgentHistory(h => [entry, ...h].slice(0,15));
+      setAgentResponse(text);
+      setAgentQuery("");
+    } catch { setAgentResponse("שגיאה בעיבוד. נסה שוב."); }
+    setAgentLoading(false);
+  };
+
+  // ══════════════════════════════════════════════════════
+  //  HELPERS
+  // ══════════════════════════════════════════════════════
+  const fmtForeign = (n, cur) => {
+    const sym = CURRENCIES.find(c=>c.code===cur)?.symbol || cur;
+    return `${sym}${Number(n).toLocaleString(undefined,{maximumFractionDigits:4})}`;
+  };
+  const sentColor = s => ({positive:T.success, negative:T.danger, neutral:T.textSub}[s]||T.textSub);
+  const sentBg    = s => ({positive:T.successBg, negative:T.dangerBg, neutral:T.bg}[s]||T.bg);
+  const sentBdr   = s => ({positive:"#bbf7d0", negative:T.dangerBorder, neutral:T.border}[s]||T.border);
+
+  const tabBtn = (id, label, icon) => (
+    <button onClick={() => setTab(id)} style={{
+      padding:"10px 14px", border:"none", background:"transparent",
+      color: tab===id ? T.navy : T.textSub, fontFamily:T.font, fontSize:13,
+      fontWeight: tab===id ? 700 : 500, cursor:"pointer", whiteSpace:"nowrap",
+      borderBottom: tab===id ? `2px solid ${T.navy}` : "2px solid transparent",
+      marginBottom:-1, transition:"color .15s", display:"flex", alignItems:"center", gap:5
+    }}>
+      <Icon name={icon} size={13} color={tab===id ? T.navy : T.textSub}/>{label}
+    </button>
+  );
+
+  const FormCard = ({title, onCancel, children}) => (
+    <Card style={{border:`1px solid ${T.navyBorder}`, background:T.navyLight}}>
+      <div style={{fontSize:13, fontWeight:600, color:T.navy, marginBottom:12}}>{title}</div>
+      <div style={{display:"flex", flexDirection:"column", gap:10}}>
+        {children}
+        <div style={{display:"flex", gap:8}}>
+          <Btn style={{flex:1, padding:"11px"}} onClick={null}>שמירה</Btn>
+          <Btn variant="secondary" style={{flex:1, padding:"11px"}} onClick={onCancel}>ביטול</Btn>
+        </div>
+      </div>
+    </Card>
+  );
+
+  // ══════════════════════════════════════════════════════
+  //  PURCHASE / SALE INLINE FORM
+  // ══════════════════════════════════════════════════════
+  const TradeForm = ({mode, form, setForm, onSave, onCancel, currency}) => {
+    const rate   = currency !== "ILS" ? +form.rateUsed || 3.68 : 1;
+    const totalForeign = (+form.shares||0) * (+form.price||0) + (+form.commission||0);
+    const totalILS     = totalForeign * rate;
+    const effectivePricePerShare = +form.shares > 0 ? totalForeign / +form.shares : 0;
+    const isBuy = mode === "buy";
+    return (
+      <div style={{background: isBuy ? T.navyLight : T.dangerBg, border:`1px solid ${isBuy ? T.navyBorder : T.dangerBorder}`, borderRadius:12, padding:14, marginTop:8}}>
+        <div style={{fontSize:12, fontWeight:700, color: isBuy ? T.navy : T.danger, marginBottom:10}}>
+          {isBuy ? "➕ קנייה נוספת" : "📤 מכירה"}
+        </div>
+        <div style={{display:"flex", flexDirection:"column", gap:8}}>
+          <div style={{display:"flex", gap:8}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>כמות יחידות</div>
+              <Inp type="number" placeholder="כמות" value={form.shares} onChange={e=>setForm({...form,shares:e.target.value})}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>שער {isBuy?"קנייה":"מכירה"}</div>
+              <Inp type="number" placeholder="מחיר" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/>
+            </div>
+          </div>
+          <div style={{display:"flex", gap:8}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>עמלה ({currency})</div>
+              <Inp type="number" placeholder="0" value={form.commission} onChange={e=>setForm({...form,commission:e.target.value})}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>תאריך</div>
+              <Inp type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/>
+            </div>
+          </div>
+          {/* Live calc */}
+          {(+form.shares>0 && +form.price>0) && (
+            <div style={{background: isBuy ? "#fff" : "#fff8f8", border:`1px solid ${isBuy ? T.navyBorder : T.dangerBorder}`, borderRadius:10, padding:"10px 14px"}}>
+              <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                <span style={{fontSize:11, color:T.textMid}}>מחיר אפקטיבי ליחידה</span>
+                <span style={{fontSize:12, fontWeight:600, color:T.text}}>{fmtForeign(effectivePricePerShare, currency)}</span>
+              </div>
+              <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                <span style={{fontSize:11, color:T.textMid}}>סך ב-{currency}</span>
+                <span style={{fontSize:12, fontWeight:600, color:T.text}}>{fmtForeign(totalForeign, currency)}</span>
+              </div>
+              <div style={{display:"flex", justifyContent:"space-between", borderTop:`1px solid ${T.border}`, paddingTop:4, marginTop:4}}>
+                <span style={{fontSize:11, color:T.textMid}}>מחיר סופי בש״ח</span>
+                <span style={{fontSize:13, fontWeight:700, color: isBuy ? T.navy : T.danger}}>{fmt(totalILS)}</span>
+              </div>
+            </div>
+          )}
+          <div style={{display:"flex", gap:8}}>
+            <Btn onClick={onSave} style={{flex:1, padding:"10px", background: isBuy ? T.navy : T.danger}}>שמירה</Btn>
+            <Btn variant="secondary" onClick={onCancel} style={{flex:1, padding:"10px"}}>ביטול</Btn>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ══════════════════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════════════════
+  return (
+    <div style={{display:"flex", flexDirection:"column", gap:0, animation:"fadeUp .25s ease"}}>
+      {/* Confirm modals */}
+      {confirmAsset  && <ConfirmModal message="למחוק נייר ערך זה לצמיתות?" onConfirm={()=>{setAssets(assets.filter(a=>a.id!==confirmAsset));setConfirmAsset(null);}} onCancel={()=>setConfirmAsset(null)}/>}
+      {confirmPurch  && <ConfirmModal message="למחוק קנייה זו?" onConfirm={()=>deletePurchase(confirmPurch)} onCancel={()=>setConfirmPurch(null)}/>}
+      {confirmSale   && <ConfirmModal message="למחוק מכירה זו?" onConfirm={()=>deleteSale(confirmSale)} onCancel={()=>setConfirmSale(null)}/>}
+
+      {/* ── Hero summary ── */}
+      <Card style={{background:`linear-gradient(135deg,${T.navy} 0%,#2d5282 100%)`, border:"none", borderRadius:18, marginBottom:4}}>
+        <div style={{color:"rgba(255,255,255,.55)", fontSize:11, fontWeight:700, letterSpacing:1, marginBottom:6, textTransform:"uppercase"}}>שווי תיק</div>
+        <div style={{fontSize:40, fontWeight:300, fontFamily:T.display, color:"#fff", letterSpacing:-2, marginBottom:4}}>{fmt(totalPortfolio)}</div>
+        <div style={{display:"flex", gap:10, marginTop:14, flexWrap:"wrap"}}>
+          {[
+            ["רווח/הפסד שוטף", totalPnL, totalPnL>=0],
+            ["רווח ממומש",      totalRealized, totalRealized>=0],
+          ].map(([label, val, pos]) => (
+            <div key={label} style={{flex:1, minWidth:110, background:"rgba(255,255,255,.1)", borderRadius:12, padding:"10px 14px", border:"1px solid rgba(255,255,255,.13)"}}>
+              <div style={{fontSize:10, color:"rgba(255,255,255,.5)", fontWeight:600, marginBottom:3}}>{label}</div>
+              <div style={{fontSize:18, fontWeight:700, color: pos ? "#86efac" : "#fca5a5", fontFamily:T.display}}>
+                {val>=0?"+":""}{fmt(val)}
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Price alerts */}
+        {priceAlerts.length > 0 && (
+          <div style={{marginTop:12, borderTop:"1px solid rgba(255,255,255,.15)", paddingTop:10}}>
+            {priceAlerts.map(a => (
+              <div key={a.ticker} style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4}}>
+                <span style={{fontSize:11, color:"rgba(255,255,255,.7)", fontWeight:600}}>⚡ {a.security}</span>
+                <span style={{fontSize:12, fontWeight:700, color: a.changePct>=0?"#86efac":"#fca5a5"}}>
+                  {a.changePct>=0?"+":""}{a.changePct.toFixed(1)}% לעומת שער קנייה
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {lastUpdated && (
+          <div style={{marginTop:8, fontSize:10, color:"rgba(255,255,255,.35)"}}>
+            עודכן: {lastUpdated.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}
+          </div>
+        )}
       </Card>
+
+      {/* ── Sub-tabs ── */}
+      <div style={{background:T.surface, borderBottom:`1px solid ${T.border}`, overflowX:"auto", scrollbarWidth:"none", marginBottom:12}}>
+        <div style={{display:"flex", padding:"0 2px"}}>
+          {tabBtn("portfolio","תיק השקעות","chart")}
+          {tabBtn("news","חדשות והתראות","insights")}
+          {tabBtn("agent","סוכן חכם","sparkle")}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════
+           TAB: תיק השקעות
+         ════════════════════════════════════════════════ */}
+      {tab==="portfolio" && (
+        <div style={{display:"flex", flexDirection:"column", gap:12}}>
+
+          {/* Active / Sold toggle + actions */}
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div style={{display:"flex", background:T.bg, border:`1px solid ${T.border}`, borderRadius:10, padding:3, gap:3}}>
+              {[["active",`פעיל (${activeAssets.length})`],["sold",`נמכר (${soldAssets.length})`]].map(([v,l])=>(
+                <button key={v} onClick={()=>setPortfolioView(v)} style={{padding:"7px 14px", borderRadius:8, fontFamily:T.font, fontSize:12, fontWeight:600, cursor:"pointer", border:"none", background:portfolioView===v?T.surface:"transparent", color:portfolioView===v?T.navy:T.textSub, boxShadow:portfolioView===v?"0 1px 4px rgba(0,0,0,.08)":"none"}}>{l}</button>
+              ))}
+            </div>
+            <div style={{display:"flex", gap:8}}>
+              <button onClick={fetchPrices} disabled={pricesLoading} style={{display:"flex", alignItems:"center", gap:5, padding:"8px 12px", borderRadius:10, border:`1px solid ${T.navyBorder}`, background:T.navyLight, color:T.navy, fontSize:12, fontFamily:T.font, fontWeight:600, cursor:pricesLoading?"wait":"pointer"}}>
+                {pricesLoading ? <div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/> : <Icon name="trending" size={13} color={T.navy}/>}
+                {pricesLoading?"טוען…":"מחירים"}
+              </button>
+              <Btn onClick={openAddAsset} style={{padding:"8px 14px", fontSize:12, display:"flex", alignItems:"center", gap:4}}>
+                <Icon name="plus" size={13} color="#fff"/>הוספה
+              </Btn>
+            </div>
+          </div>
+
+          {pricesError && <div style={{background:T.dangerBg, border:`1px solid ${T.dangerBorder}`, borderRadius:10, padding:"10px 14px", fontSize:12, color:T.danger}}>{pricesError}</div>}
+
+          {/* Add asset form */}
+          {showAssetForm && (() => {
+            const rate     = assetForm.currency!=="ILS" ? +assetForm.rateUsed||1 : 1;
+            const totalFx  = (+assetForm.shares||0)*(+assetForm.price||0)+(+assetForm.commission||0);
+            const totalILS = totalFx * rate;
+            const effPrice = +assetForm.shares>0 ? totalFx/+assetForm.shares : 0;
+            return (
+              <Card style={{border:`1px solid ${T.navyBorder}`, background:T.navyLight}}>
+                <div style={{fontSize:13, fontWeight:600, color:T.navy, marginBottom:12}}>{editAssetId?"עריכת נייר ערך":"נייר ערך חדש"}</div>
+                <div style={{display:"flex", flexDirection:"column", gap:10}}>
+                  <div>
+                    <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>נייר ערך</div>
+                    <Inp placeholder='למשל: Apple (AAPL) / ביטקוין (BTC)' value={assetForm.security} onChange={e=>setAssetForm({...assetForm,security:e.target.value})}/>
+                  </div>
+                  {!editAssetId && (<>
+                    <div style={{display:"flex", gap:8}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>כמות יחידות</div>
+                        <Inp type="number" placeholder="כמות" value={assetForm.shares} onChange={e=>setAssetForm({...assetForm,shares:e.target.value})}/>
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>שער קנייה</div>
+                        <Inp type="number" placeholder="מחיר" value={assetForm.price} onChange={e=>setAssetForm({...assetForm,price:e.target.value})}/>
+                      </div>
+                    </div>
+                    <div style={{display:"flex", gap:8}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>עמלת קנייה</div>
+                        <Inp type="number" placeholder="0" value={assetForm.commission} onChange={e=>setAssetForm({...assetForm,commission:e.target.value})}/>
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:10, color:T.textMid, fontWeight:600, marginBottom:3}}>תאריך קנייה</div>
+                        <Inp type="date" value={assetForm.date} onChange={e=>setAssetForm({...assetForm,date:e.target.value})}/>
+                      </div>
+                    </div>
+                  </>)}
+                  <CurrencyField currency={assetForm.currency} setCurrency={c=>setAssetForm({...assetForm,currency:c})} rate={assetForm.rateUsed} setRate={r=>setAssetForm({...assetForm,rateUsed:r})} amount={assetForm.price}/>
+                  {/* Live calc summary */}
+                  {!editAssetId && (+assetForm.shares>0 && +assetForm.price>0) && (
+                    <div style={{background:"#fff", border:`1px solid ${T.navyBorder}`, borderRadius:10, padding:"10px 14px"}}>
+                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                        <span style={{fontSize:11, color:T.textMid}}>מחיר אפקטיבי ליחידה</span>
+                        <span style={{fontSize:12, fontWeight:600}}>{fmtForeign(effPrice, assetForm.currency)}</span>
+                      </div>
+                      <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                        <span style={{fontSize:11, color:T.textMid}}>סך ב-{assetForm.currency}</span>
+                        <span style={{fontSize:12, fontWeight:600}}>{fmtForeign(totalFx, assetForm.currency)}</span>
+                      </div>
+                      <div style={{display:"flex", justifyContent:"space-between", borderTop:`1px solid ${T.border}`, paddingTop:4, marginTop:4}}>
+                        <span style={{fontSize:11, color:T.textMid, fontWeight:700}}>מחיר סופי בש״ח</span>
+                        <span style={{fontSize:14, fontWeight:700, color:T.navy}}>{fmt(totalILS)}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{display:"flex", gap:8}}>
+                    <Btn onClick={saveAsset} style={{flex:1, padding:"11px"}}>שמירה</Btn>
+                    <Btn variant="secondary" onClick={()=>{setShowAssetForm(false);setEditAssetId(null);}} style={{flex:1, padding:"11px"}}>ביטול</Btn>
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
+
+          {/* Donut allocation (active only) */}
+          {activeAssets.length > 1 && portfolioView==="active" && (
+            <Card style={{padding:16}}>
+              <div style={{fontSize:13, fontWeight:600, color:T.text, marginBottom:12}}>הקצאת תיק</div>
+              <div style={{display:"flex", gap:14, alignItems:"center"}}>
+                <Donut slices={activeAssets.map((a,i)=>({val:currentValILS(a), color:[T.navy,"#2563ab","#7c3aed","#be185d","#1a6b3c","#6b5c3e"][i%6]}))} size={120}/>
+                <div style={{flex:1}}>
+                  {activeAssets.map((a,i)=>{
+                    const pct = ((currentValILS(a)/totalPortfolio)*100).toFixed(1);
+                    const colors = [T.navy,"#2563ab","#7c3aed","#be185d","#1a6b3c","#6b5c3e"];
+                    return (
+                      <div key={a.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7}}>
+                        <div style={{display:"flex", alignItems:"center", gap:6}}>
+                          <CatDot color={colors[i%6]} size={8}/>
+                          <span style={{fontSize:12, color:T.textMid, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:130}}>{a.security}</span>
+                        </div>
+                        <span style={{fontSize:12, color:T.text, fontWeight:700}}>{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Asset cards */}
+          {(portfolioView==="active" ? activeAssets : soldAssets).map(a => {
+            const ticker    = extractTicker(a.security);
+            const pnl       = portfolioView==="active" ? unrealizedPnLILS(a) : realizedPnLILS(a);
+            const pnlPct    = (costBasisILS(a)-soldCostILS(a)) > 0 ? (unrealizedPnLILS(a)/(costBasisILS(a)-soldCostILS(a)))*100 : 0;
+            const pos       = pnl >= 0;
+            const price     = prices[ticker];
+            const avg       = avgBuyPrice(a);
+            const shrs      = totalShares(a);
+            const rate      = a.currency !== "ILS" ? +a.rateUsed : 1;
+            const isExpanded = expandedId === a.id;
+
+            return (
+              <Card key={a.id} style={{padding:16}}>
+                {/* Header row */}
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, cursor:"pointer"}} onClick={()=>setExpandedId(isExpanded?null:a.id)}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:14, fontWeight:700, color:T.text, marginBottom:3}}>{a.security}</div>
+                    <div style={{fontSize:11, color:T.textSub}}>
+                      {shrs > 0 ? `${shrs.toFixed(shrs<1?6:4)} יחידות` : "נמכר"}
+                      {" · "}שער ממוצע {fmtForeign(avg, a.currency)}
+                      {" · "}{fmt(avg*rate)}/יח׳
+                    </div>
+                    {price && (
+                      <div style={{fontSize:11, color:T.textSub, marginTop:2}}>
+                        מחיר נוכחי: {fmtForeign(price, a.currency)} ({fmt(price*rate)})
+                      </div>
+                    )}
+                  </div>
+                  <div style={{display:"flex", flexDirection:"column", alignItems:"flex-end", gap:5}}>
+                    {portfolioView==="active" && (
+                      <div style={{fontSize:20, fontWeight:600, fontFamily:T.display, color:T.text}}>{fmt(currentValILS(a))}</div>
+                    )}
+                    <div style={{fontSize:12, fontWeight:700, color: pos?T.success:T.danger, background: pos?T.successBg:T.dangerBg, borderRadius:99, padding:"3px 10px", border:`1px solid ${pos?"#bbf7d0":T.dangerBorder}`}}>
+                      {pos?"+":""}{fmt(pnl)} {portfolioView==="active"&&`(${pos?"+":""}${pnlPct.toFixed(1)}%)`}
+                    </div>
+                    <div style={{fontSize:9, color:T.textSub}}>{isExpanded?"▲ סגור":"▼ יומן מסחר"}</div>
+                  </div>
+                </div>
+
+                {/* Expanded: trade journal */}
+                {isExpanded && (
+                  <div style={{marginTop:14, borderTop:`1px solid ${T.border}`, paddingTop:14}}>
+                    {/* Purchases */}
+                    <div style={{fontSize:11, fontWeight:700, color:T.navy, marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                      <span>📥 קניות ({a.purchases.length})</span>
+                      <button onClick={()=>{setAddPurchaseId(a.id);setAddSaleId(null);setPurchaseForm(blankPurchase);}} style={{background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:11,color:T.navy,fontFamily:T.font,fontWeight:600}}>+ קנייה נוספת</button>
+                    </div>
+                    {a.purchases.map(p=>{
+                      const totalFx  = +p.shares * +p.price + (+p.commission||0);
+                      const totalIls = totalFx * rate;
+                      return (
+                        <div key={p.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:`1px dashed ${T.border}`}}>
+                          <div>
+                            <div style={{fontSize:12, fontWeight:600, color:T.text}}>{p.shares} יחידות × {fmtForeign(p.price, a.currency)}</div>
+                            <div style={{fontSize:10, color:T.textSub}}>
+                              {new Date(p.date).toLocaleDateString("he-IL")}
+                              {p.commission>0 && ` · עמלה ${fmtForeign(p.commission, a.currency)}`}
+                            </div>
+                          </div>
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            <div style={{textAlign:"left"}}>
+                              <div style={{fontSize:12, fontWeight:700, color:T.navy}}>{fmt(totalIls)}</div>
+                              <div style={{fontSize:10, color:T.textSub}}>{fmtForeign(totalFx, a.currency)}</div>
+                            </div>
+                            <button onClick={()=>setConfirmPurch({assetId:a.id,purchaseId:p.id})} style={{background:"none",border:`1px solid ${T.dangerBorder}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",display:"flex",alignItems:"center"}}>
+                              <Icon name="trash" size={11} color={T.danger}/>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add purchase form */}
+                    {addPurchaseId===a.id && (
+                      <TradeForm
+                        mode="buy"
+                        form={{...purchaseForm, rateUsed: String(a.rateUsed)}}
+                        setForm={f=>setPurchaseForm({...f})}
+                        onSave={()=>savePurchase(a.id)}
+                        onCancel={()=>setAddPurchaseId(null)}
+                        currency={a.currency}
+                      />
+                    )}
+
+                    {/* Sales */}
+                    {((a.sales||[]).length > 0 || portfolioView==="active") && (
+                      <div style={{marginTop:12}}>
+                        <div style={{fontSize:11, fontWeight:700, color:T.danger, marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                          <span>📤 מכירות ({(a.sales||[]).length})</span>
+                          {portfolioView==="active" && shrs > 0 && (
+                            <button onClick={()=>{setAddSaleId(a.id);setAddPurchaseId(null);setSaleForm(blankSale);}} style={{background:T.dangerBg,border:`1px solid ${T.dangerBorder}`,borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:11,color:T.danger,fontFamily:T.font,fontWeight:600}}>+ מכירה</button>
+                          )}
+                        </div>
+                        {(a.sales||[]).map(s=>{
+                          const avgCost    = avgBuyPrice(a);
+                          const revenue    = +s.shares * +s.price - (+s.commission||0);
+                          const costOfSale = +s.shares * avgCost;
+                          const salePnl    = (revenue - costOfSale) * rate;
+                          const pnlPos     = salePnl >= 0;
+                          return (
+                            <div key={s.id} style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:`1px dashed ${T.border}`}}>
+                              <div>
+                                <div style={{fontSize:12, fontWeight:600, color:T.text}}>{s.shares} יחידות × {fmtForeign(s.price, a.currency)}</div>
+                                <div style={{fontSize:10, color:T.textSub}}>
+                                  {new Date(s.date).toLocaleDateString("he-IL")}
+                                  {s.commission>0 && ` · עמלה ${fmtForeign(s.commission, a.currency)}`}
+                                </div>
+                              </div>
+                              <div style={{display:"flex", alignItems:"center", gap:8}}>
+                                <div style={{textAlign:"left"}}>
+                                  <div style={{fontSize:11, fontWeight:700, color: pnlPos?T.success:T.danger}}>
+                                    {pnlPos?"+":""}{fmt(salePnl)}
+                                  </div>
+                                  <div style={{fontSize:10, color:T.textSub}}>רווח/הפסד</div>
+                                </div>
+                                <button onClick={()=>setConfirmSale({assetId:a.id,saleId:s.id})} style={{background:"none",border:`1px solid ${T.dangerBorder}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",display:"flex",alignItems:"center"}}>
+                                  <Icon name="trash" size={11} color={T.danger}/>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {(a.sales||[]).length===0 && <div style={{fontSize:11,color:T.textSub,fontStyle:"italic"}}>אין מכירות עדיין</div>}
+
+                        {/* Add sale form */}
+                        {addSaleId===a.id && (
+                          <TradeForm
+                            mode="sell"
+                            form={{...saleForm, rateUsed: String(a.rateUsed)}}
+                            setForm={f=>setSaleForm({...f})}
+                            onSave={()=>saveSale(a.id)}
+                            onCancel={()=>setAddSaleId(null)}
+                            currency={a.currency}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Edit / Delete asset */}
+                    <div style={{marginTop:12, display:"flex", gap:8}}>
+                      <button onClick={()=>{setEditAssetId(a.id);setShowAssetForm(true);setExpandedId(null);}} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",borderRadius:9,border:`1px solid ${T.border}`,background:"none",cursor:"pointer",fontSize:12,color:T.textMid,fontFamily:T.font,fontWeight:600}}>
+                        <Icon name="pencil" size={12} color={T.textMid}/>עריכה
+                      </button>
+                      <button onClick={()=>setConfirmAsset(a.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",borderRadius:9,border:`1px solid ${T.dangerBorder}`,background:T.dangerBg,cursor:"pointer",fontSize:12,color:T.danger,fontFamily:T.font,fontWeight:600}}>
+                        <Icon name="trash" size={12} color={T.danger}/>מחיקה
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+
+          {(portfolioView==="active" ? activeAssets : soldAssets).length===0 && (
+            <div style={{textAlign:"center", color:T.textSub, padding:40, fontSize:13}}>
+              {portfolioView==="active" ? "אין ניירות ערך פעילים" : "אין מכירות מתועדות"}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+           TAB: חדשות והתראות
+         ════════════════════════════════════════════════ */}
+      {tab==="news" && (
+        <div style={{display:"flex", flexDirection:"column", gap:12}}>
+
+          {/* Daily summary */}
+          <Card style={{border:`1px solid ${T.navyBorder}`, background:T.navyLight, padding:16}}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+              <div style={{display:"flex", alignItems:"center", gap:7}}>
+                <Icon name="insights" size={14} color={T.navy}/>
+                <span style={{fontSize:13, fontWeight:700, color:T.navy}}>סיכום יומי</span>
+              </div>
+              <button onClick={fetchDailySummary} disabled={summaryLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:9,border:`1px solid ${T.navyBorder}`,background:"#fff",color:T.navy,fontSize:11,fontFamily:T.font,fontWeight:600,cursor:summaryLoading?"wait":"pointer"}}>
+                {summaryLoading ? <div style={{width:10,height:10,borderRadius:"50%",border:`2px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/> : "🔄"}
+                {summaryLoading?"טוען…":"עדכן"}
+              </button>
+            </div>
+            {dailySummary
+              ? <div style={{fontSize:13, color:T.text, lineHeight:1.8, direction:"rtl"}}>{dailySummary}</div>
+              : <div style={{fontSize:12, color:T.textSub, textAlign:"center", padding:"8px 0"}}>לחץ "עדכן" לסיכום שוק יומי מבוסס AI</div>
+            }
+          </Card>
+
+          {/* Watchlist + alert threshold */}
+          <Card style={{padding:14}}>
+            <div style={{fontSize:12, fontWeight:700, color:T.text, marginBottom:10}}>מעקב סמלים</div>
+            <div style={{display:"flex", gap:6, flexWrap:"wrap", marginBottom:10}}>
+              {watchlist.map(sym => (
+                <div key={sym} style={{display:"flex", alignItems:"center", gap:4, background:T.navyLight, border:`1px solid ${T.navyBorder}`, borderRadius:99, padding:"5px 10px"}}>
+                  <span style={{fontSize:12, fontWeight:700, color:T.navy}}>{sym}</span>
+                  {prices[sym] && <span style={{fontSize:10, color:T.textSub}}>${Number(prices[sym]).toLocaleString()}</span>}
+                  <button onClick={()=>setWatchlist(watchlist.filter(s=>s!==sym))} style={{background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex", gap:8}}>
+              <Inp placeholder="הוסף סמל (TSLA, ETH...)" value={newWatch} onChange={e=>setNewWatch(e.target.value.toUpperCase())}
+                onKeyDown={e=>{if(e.key==="Enter"&&newWatch.trim()){setWatchlist([...watchlist,newWatch.trim()]);setNewWatch("");}}} style={{flex:1}}/>
+              <Btn onClick={()=>{if(newWatch.trim()){setWatchlist([...watchlist,newWatch.trim()]);setNewWatch("");}}} style={{padding:"10px 14px"}}><Icon name="plus" size={13} color="#fff"/></Btn>
+            </div>
+            <div style={{marginTop:12, display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+              <span style={{fontSize:11, color:T.textMid, fontWeight:600}}>⚡ התראה על שינוי ≥</span>
+              <div style={{display:"flex", alignItems:"center", gap:8}}>
+                {[2,3,5,10].map(v=>(
+                  <button key={v} onClick={()=>setAlertThresh(v)} style={{padding:"4px 10px", borderRadius:99, fontFamily:T.font, fontSize:11, fontWeight:700, cursor:"pointer", border:`1px solid ${alertThresh===v?T.navy:T.border}`, background:alertThresh===v?T.navy:"transparent", color:alertThresh===v?"#fff":T.textSub}}>{v}%</button>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {/* Custom topics */}
+          <Card style={{padding:14}}>
+            <div style={{fontSize:12, fontWeight:700, color:T.text, marginBottom:10}}>נושאי חיפוש</div>
+            <div style={{display:"flex", gap:6, flexWrap:"wrap", marginBottom:10}}>
+              {customTopics.map((t,i) => (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:4,background:T.bg,border:`1px solid ${T.border}`,borderRadius:99,padding:"5px 10px"}}>
+                  <span style={{fontSize:12, color:T.text}}>{t}</span>
+                  <button onClick={()=>setCustomTopics(customTopics.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex", gap:8}}>
+              <Inp placeholder="נושא חדש (ריביות, AI, נפט...)" value={newTopic} onChange={e=>setNewTopic(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&newTopic.trim()){setCustomTopics([...customTopics,newTopic.trim()]);setNewTopic("");}}} style={{flex:1}}/>
+              <Btn onClick={()=>{if(newTopic.trim()){setCustomTopics([...customTopics,newTopic.trim()]);setNewTopic("");}}} style={{padding:"10px 14px"}}><Icon name="plus" size={13} color="#fff"/></Btn>
+            </div>
+          </Card>
+
+          {/* Search + fetch */}
+          <div style={{display:"flex", gap:8}}>
+            <Inp placeholder="חיפוש חופשי (למשל: ריבית פד, השפעת AI על מניות...)" value={newsSearch} onChange={e=>setNewsSearch(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&fetchNews(newsSearch)} style={{flex:1}}/>
+            <button onClick={()=>fetchNews(newsSearch)} disabled={newsLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"10px 16px",borderRadius:10,border:`1px solid ${T.navyBorder}`,background:T.navy,color:"#fff",fontSize:12,fontFamily:T.font,fontWeight:600,cursor:newsLoading?"wait":"pointer",flexShrink:0}}>
+              {newsLoading ? <div style={{width:12,height:12,borderRadius:"50%",border:"2px solid #fff",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/> : <Icon name="insights" size={13} color="#fff"/>}
+              {newsLoading?"טוען…":"חדשות"}
+            </button>
+          </div>
+
+          {/* Sentiment history chart */}
+          {sentimentLog.length > 1 && (
+            <Card style={{padding:16}}>
+              <div style={{fontSize:13, fontWeight:600, color:T.text, marginBottom:12}}>מגמת סנטימנט — {sentimentLog.length} טעינות</div>
+              <div style={{display:"flex", alignItems:"flex-end", gap:4, height:70}}>
+                {sentimentLog.slice(-14).map((l,i)=>{
+                  const maxV = Math.max(...sentimentLog.map(x=>x.total),1);
+                  const posH = Math.round((l.pos/maxV)*66);
+                  const negH = Math.round((l.neg/maxV)*66);
+                  return (
+                    <div key={i} style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2}}>
+                      <div style={{width:"100%", height:70, display:"flex", alignItems:"flex-end", gap:1, justifyContent:"center"}}>
+                        <div style={{width:"45%", height:posH, background:T.success, borderRadius:"2px 2px 0 0"}}/>
+                        <div style={{width:"45%", height:negH, background:T.danger, borderRadius:"2px 2px 0 0"}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex", gap:12, marginTop:6, fontSize:10, color:T.textSub}}>
+                <div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:8,height:8,borderRadius:2,background:T.success}}/> חיובי</div>
+                <div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:8,height:8,borderRadius:2,background:T.danger}}/> שלילי</div>
+              </div>
+            </Card>
+          )}
+
+          {/* News cards */}
+          {news.length===0 && !newsLoading && (
+            <Card style={{padding:32, textAlign:"center"}}>
+              <Icon name="insights" size={28} color={T.textSub}/>
+              <div style={{fontSize:13, color:T.textSub, marginTop:12, lineHeight:1.9}}>
+                לחץ "חדשות" לקבלת עדכונים פיננסיים בזמן אמת<br/>
+                <span style={{fontSize:11}}>ניתן לחפש נושא ספציפי בשדה החיפוש</span>
+              </div>
+            </Card>
+          )}
+          {newsLoading && (
+            <Card style={{padding:28, textAlign:"center"}}>
+              <div style={{width:22,height:22,borderRadius:"50%",border:`3px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/>
+              <div style={{fontSize:13, color:T.textSub}}>מחפש חדשות…</div>
+            </Card>
+          )}
+          {news.map((item,i)=>(
+            <Card key={i} style={{padding:14, borderRight:`3px solid ${sentColor(item.sentiment)}`}}>
+              <div style={{display:"flex", alignItems:"center", gap:6, marginBottom:6}}>
+                {item.symbol && item.symbol!=="GENERAL" && (
+                  <span style={{fontSize:10,fontWeight:700,color:T.navy,background:T.navyLight,borderRadius:6,padding:"2px 7px",border:`1px solid ${T.navyBorder}`}}>{item.symbol}</span>
+                )}
+                <span style={{fontSize:10,color:sentColor(item.sentiment),fontWeight:700,background:sentBg(item.sentiment),borderRadius:99,padding:"2px 8px",border:`1px solid ${sentBdr(item.sentiment)}`}}>
+                  {item.sentiment==="positive"?"▲ חיובי":item.sentiment==="negative"?"▼ שלילי":"○ ניטרלי"}
+                </span>
+                {item.source && <span style={{fontSize:10,color:T.textSub,marginRight:"auto"}}>{item.source}</span>}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:5,lineHeight:1.5}}>{item.title}</div>
+              {item.summary && <div style={{fontSize:12,color:T.textMid,lineHeight:1.7}}>{item.summary}</div>}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+           TAB: סוכן חכם
+         ════════════════════════════════════════════════ */}
+      {tab==="agent" && (
+        <div style={{display:"flex", flexDirection:"column", gap:12}}>
+          {/* Header card */}
+          <Card style={{background:`linear-gradient(135deg,#1e3a5f 0%,#2d5282 100%)`,border:"none",padding:18}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <div style={{width:34,height:34,borderRadius:11,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Icon name="sparkle" size={17} color="#fff"/>
+              </div>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>סוכן השקעות חכם</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.55)"}}>מנתח את התיק שלך עם מידע עדכני מהרשת</div>
+              </div>
+            </div>
+            {/* Portfolio snapshot for agent */}
+            <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:10}}>
+              {assets.slice(0,3).map(a=>(
+                <div key={a.id} style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,.6)"}}>{a.security}</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,.85)",fontWeight:600}}>{fmt(currentValILS(a))}</span>
+                </div>
+              ))}
+              {assets.length>3 && <div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginTop:2}}>ועוד {assets.length-3} ניירות…</div>}
+            </div>
+          </Card>
+
+          {/* Input */}
+          <Card style={{padding:14}}>
+            <textarea value={agentQuery} onChange={e=>setAgentQuery(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))runAgent();}}
+              placeholder="שאל כל שאלה על ההשקעות שלך… (⌘Enter לשליחה)"
+              rows={3}
+              style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",color:T.text,fontSize:14,outline:"none",fontFamily:T.font,resize:"none",width:"100%",direction:"rtl",marginBottom:10}}/>
+            <Btn onClick={runAgent} disabled={agentLoading||!agentQuery.trim()} style={{width:"100%",padding:"12px",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+              {agentLoading
+                ? <><div style={{width:14,height:14,borderRadius:"50%",border:"2px solid #fff",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>מנתח…</>
+                : <><Icon name="sparkle" size={14} color="#fff"/>שלח לסוכן</>}
+            </Btn>
+          </Card>
+
+          {/* Suggested questions */}
+          {!agentResponse && (
+            <div>
+              <div style={{fontSize:11,color:T.textSub,fontWeight:700,marginBottom:8}}>שאלות מוצעות</div>
+              {[
+                "האם התיק שלי מגוון מספיק?",
+                "מה הנייר עם הביצועים הגרועים ביותר? האם למכור?",
+                "מה הריבית הנוכחית של הפד ואיך זה משפיע עלי?",
+                "האם יש הזדמנות קנייה בנאסד״ק כרגע?",
+              ].map((s,i)=>(
+                <button key={i} onClick={()=>setAgentQuery(s)} style={{width:"100%",background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",textAlign:"right",cursor:"pointer",fontFamily:T.font,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <Icon name="trending" size={13} color={T.navyMid}/>{s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Latest response */}
+          {agentResponse && (
+            <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                <div style={{width:22,height:22,borderRadius:7,background:T.navy,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Icon name="sparkle" size={12} color="#fff"/>
+                </div>
+                <span style={{fontSize:12,fontWeight:700,color:T.navy}}>תשובת הסוכן</span>
+                <button onClick={()=>setAgentResponse("")} style={{marginRight:"auto",background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:18,lineHeight:1,padding:0}}>×</button>
+              </div>
+              <div style={{fontSize:13,color:T.text,lineHeight:1.9,whiteSpace:"pre-wrap",direction:"rtl"}}>{agentResponse}</div>
+              <button onClick={()=>setAgentQuery("")} style={{marginTop:12,background:"none",border:`1px solid ${T.navyBorder}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,color:T.navy,fontFamily:T.font,fontWeight:600}}>שאלה נוספת</button>
+            </Card>
+          )}
+
+          {/* History */}
+          {agentHistory.length > 0 && (
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:11,color:T.textSub,fontWeight:700}}>שיחות קודמות</div>
+                <button onClick={()=>setAgentHistory([])} style={{fontSize:11,color:T.danger,fontFamily:T.font,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>נקה</button>
+              </div>
+              {agentHistory.map(h=>(
+                <Card key={h.id} style={{padding:12,marginBottom:8,cursor:"pointer"}} onClick={()=>setAgentResponse(h.a)}>
+                  <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:3}}>{h.q}</div>
+                  <div style={{fontSize:11,color:T.textSub,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.a.slice(0,90)}…</div>
+                  <div style={{fontSize:10,color:T.textSub,marginTop:4}}>{new Date(h.date).toLocaleDateString("he-IL")}</div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1527,10 +2545,10 @@ function SettingsSection({cats,setCats,specialCatsList,setSpecialCatsList,menuCo
             </div>
           </Card>
           <Card>
-            <div style={{fontSize:13,fontWeight:700,color:T.navy,marginBottom:12}}>קונספטי תפריטים</div>
+            <div style={{fontSize:13,fontWeight:700,color:T.navy,marginBottom:12}}>סגנונות תפריטים</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>{menuConceptsList.map((c,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:4,background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"5px 12px"}}><span style={{fontSize:12,color:T.navy}}>{c}</span><button onClick={()=>setMenuConceptsList(menuConceptsList.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:T.navyMid,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button></div>))}</div>
             <div style={{display:"flex",gap:8}}>
-              <Inp placeholder="קונספט חדש" value={newConcept} onChange={e=>setNewConcept(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newConcept.trim()){setMenuConceptsList([...menuConceptsList,newConcept.trim()]);setNewConcept("");}}}/>
+              <Inp placeholder="סגנון חדש" value={newConcept} onChange={e=>setNewConcept(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newConcept.trim()){setMenuConceptsList([...menuConceptsList,newConcept.trim()]);setNewConcept("");}}}/>
               <Btn onClick={()=>{if(newConcept.trim()){setMenuConceptsList([...menuConceptsList,newConcept.trim()]);setNewConcept("");}}} style={{padding:"10px 14px",flexShrink:0}}><Icon name="plus" size={13} color="#fff"/></Btn>
             </div>
           </Card>
