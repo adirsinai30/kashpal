@@ -629,7 +629,7 @@ function GroceryTab(){
     setScanMsg("מנתח קבלה…");
     const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.readAsDataURL(file);});
     try{
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      const resp=await fetch("/api/anthropic",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data:b64}},
           {type:"text",text:`חלץ רשימת פריטים מהקבלה. החזר JSON בלבד:\n{"items":[{"name":"שם בעברית","qty":"1","price":0}]}`}
