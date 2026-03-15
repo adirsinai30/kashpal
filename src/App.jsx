@@ -1060,45 +1060,56 @@ function InvestSection({ tab, setTab }) {
   };
   const deleteDividend=(id)=>{setDividends(dividends.filter(d=>d.id!==id));setConfirmDiv(null);};
 
-  const fetchPrices=async()=>{
-    const allTickers=[...new Set([...assets.map(a=>extractTicker(a.security)),...watchlist])];
+const fetchPrices=async()=>{
+    const allTickers=[...new Set([
+      ...assets.map(a=>extractTicker(a.security)),
+      ...watchlist
+    ])];
     if(!allTickers.length)return;
     setPricesLoading(true);setPricesError("");
+
     const result={};
     const cryptoIds={BTC:"bitcoin",ETH:"ethereum",SOL:"solana",BNB:"binancecoin",ADA:"cardano",XRP:"ripple",DOGE:"dogecoin",DOT:"polkadot",MATIC:"matic-network",AVAX:"avalanche-2"};
     const cryptoTickers=allTickers.filter(t=>cryptoIds[t]);
     const stockTickers=allTickers.filter(t=>!cryptoIds[t]);
+
     try{
-      if(cryptoTickers.length){const ids=cryptoTickers.map(t=>cryptoIds[t]).join(",");const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);const d=await r.json();cryptoTickers.forEach(t=>{const id=cryptoIds[t];if(d[id]?.usd)result[t]=d[id].usd;});}
-      if(stockTickers.length){
-        const fetchWithTimeout=(url,ms=6000)=>{
-          const ctrl=new AbortController();
-          const t=setTimeout(()=>ctrl.abort(),ms);
-          return fetch(url,{signal:ctrl.signal}).finally(()=>clearTimeout(t));
-        };
-        for(const ticker of stockTickers){
-          try{
-            // ניסיון 1: Yahoo Finance דרך corsproxy.io
-            const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d&includePrePost=false`;
-            let price=null;
-            try{
-              const r=await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-              if(r.ok){const d=await r.json();price=d?.chart?.result?.[0]?.meta?.regularMarketPrice||null;}
-            }catch{}
-            // ניסיון 2: thingproxy אם הראשון נכשל
-            if(!price){
-              try{
-                const r2=await fetchWithTimeout(`https://thingproxy.freeboard.io/fetch/${url}`);
-                if(r2.ok){const d=await r2.json();price=d?.chart?.result?.[0]?.meta?.regularMarketPrice||null;}
-              }catch{}
-            }
-            if(price)result[ticker]=price;
-          }catch{}
+      // ── קריפטו דרך CoinGecko (עובד מ-browser) ──
+      if(cryptoTickers.length){
+        const ids=cryptoTickers.map(t=>cryptoIds[t]).join(",");
+        const r=await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+        if(r.ok){
+          const d=await r.json();
+          cryptoTickers.forEach(t=>{
+            const id=cryptoIds[t];
+            if(d[id]?.usd)result[t]=d[id].usd;
+          });
         }
       }
-      if(Object.keys(result).length){setPrices(result);setLastUpdated(new Date());}
-      else setPricesError("לא ניתן לקבל מחירים כרגע");
-    }catch{setPricesError("שגיאת חיבור");}
+
+      // ── מניות דרך serverless function ──
+      if(stockTickers.length){
+        const r=await fetch("/api/prices",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({tickers:stockTickers})
+        });
+        if(r.ok){
+          const data=await r.json();
+          Object.assign(result,data);
+        }
+      }
+
+      if(Object.keys(result).length){
+        setPrices(result);
+        setLastUpdated(new Date());
+      } else {
+        setPricesError("לא ניתן לקבל מחירים כרגע");
+      }
+    }catch{
+      setPricesError("שגיאת חיבור");
+    }
+
     setPricesLoading(false);
   };
   const detectSentiment=(text)=>{
