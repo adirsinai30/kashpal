@@ -626,6 +626,100 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
   );
 }
 
+// ── Pre-processing: שפר את התמונה לפני OCR ──
+async function preprocessImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");
+      // הגדל פי 2 לדיוק טוב יותר
+      const scale=Math.min(2, 3000/Math.max(img.width,img.height));
+      canvas.width=img.width*scale;
+      canvas.height=img.height*scale;
+      const ctx=canvas.getContext("2d");
+
+      // רקע לבן
+      ctx.fillStyle="#ffffff";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // צייר תמונה מוגדלת
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+      // שפר ניגודיות
+      const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+      const data=imageData.data;
+      for(let i=0;i<data.length;i+=4){
+        // המר לגווני אפור
+        const gray=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+        // threshold — הפוך לשחור/לבן
+        const bw=gray>128?255:0;
+        data[i]=data[i+1]=data[i+2]=bw;
+      }
+      ctx.putImageData(imageData,0,0);
+
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror=reject;
+    img.src=url;
+  });
+}
+
+// ── פרסור חכם של טקסט קבלה ──
+function parseReceiptText(rawText){
+  const lines=rawText
+    .split("\n")
+    .map(l=>l.trim())
+    .filter(l=>l.length>1);
+
+  // מילים לדילוג
+  const skipPatterns=[
+    /סה.?כ/,/total/i,/מע.?מ/,/vat/i,/שלם/,/cash/i,/change/i,
+    /תודה/,/thank/i,/חשבונית/,/קבלה/,/תאריך/,/date/i,
+    /מספר/,/טלפון/,/phone/i,/קופה/,/פקיד/,
+    /^\d{1,2}[/.]\d{1,2}[/.]\d{2,4}$/,  // תאריך
+    /^\d{2,4}$/,                           // מספר קצר בלבד
+    /^[*\-=_]{2,}$/,                       // קווים מפרידים
+  ];
+
+  const pricePattern=/(\d+[.,]\d{2})\s*$/;  // מחיר בסוף שורה
+  const qtyPattern=/^(\d+)\s*[×xX*]\s*/;    // כמות בתחילה
+
+  const items=[];
+
+  for(const line of lines){
+    // דלג על שורות שלא רלוונטיות
+    if(skipPatterns.some(p=>p.test(line)))continue;
+
+    // חלץ כמות
+    const qtyMatch=line.match(qtyPattern);
+    const qty=qtyMatch?qtyMatch[1]:"1";
+
+    // חלץ מחיר
+    const priceMatch=line.match(pricePattern);
+    const price=priceMatch?parseFloat(priceMatch[1].replace(",",".")):0;
+
+    // נקה את שם המוצר
+    let name=line
+      .replace(qtyPattern,"")
+      .replace(pricePattern,"")
+      .replace(/[\d.,₪$%]+/g," ")
+      .replace(/[×xX*]/g," ")
+      .trim()
+      .replace(/\s+/g," ");
+
+    // וידוא שם תקין
+    if(name.length<2||name.length>60)continue;
+    // דלג אם נשאר רק מספרים/סימנים
+    if(/^[\d\s.,*×%₪$-]+$/.test(name))continue;
+
+    items.push({id:uid(),name,qty,checked:false,price});
+  }
+
+  return items;
+}
+
 function GroceryTab(){
   const LISTS_KEY="kp-grocery-lists";
   const [lists,setLists]=useStorage(LISTS_KEY,[{id:"default",name:"רשימה ראשית",items:DEFAULT_GROCERY}]);
@@ -660,100 +754,65 @@ function GroceryTab(){
   const COL_QTY=60;
 
 const handleReceiptUpload=async e=>{
-    const file=e.target.files?.[0];if(!file)return;
-    setScanMsg("קורא קבלה…");
-    try{
-      // המר לbase64
-      const base64=await new Promise((res,rej)=>{
-        const r=new FileReader();
-        r.onload=()=>res(r.result.split(",")[1]);
-        r.onerror=rej;
-        r.readAsDataURL(file);
+  const file=e.target.files?.[0];
+  if(!file)return;
+
+  // וידוא שזו תמונה בלבד
+  if(!file.type.startsWith("image/")){
+    setScanMsg("יש להעלות תמונה בלבד (JPG, PNG)");
+    setTimeout(()=>setScanMsg(""),3000);
+    e.target.value="";return;
+  }
+
+  setScanMsg("מכין תמונה…");
+
+  try{
+    // ── שלב 1: Pre-processing — שפר ניגודיות וחדד ──
+    const processedBase64=await preprocessImage(file);
+
+    setScanMsg("מזהה טקסט…");
+
+    // ── שלב 2: טען Tesseract ──
+    if(!window.Tesseract){
+      await new Promise((res,rej)=>{
+        const s=document.createElement("script");
+        s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+        s.onload=res;s.onerror=rej;
+        document.head.appendChild(s);
       });
+    }
 
-      // קבע media type
-      const mediaType=file.type==="application/pdf"?"application/pdf":
-                       file.type==="image/png"?"image/png":
-                       file.type==="image/webp"?"image/webp":
-                       file.type==="image/gif"?"image/gif":"image/jpeg";
-
-      if(file.type==="application/pdf"&&file.size>5*1024*1024){
-        setScanMsg("קובץ PDF גדול מדי (מקסימום 5MB)");
-        setTimeout(()=>setScanMsg(""),4000);
-        e.target.value="";return;
+    // ── שלב 3: הרץ OCR עם עברית + אנגלית ──
+    const {data:{text}}=await window.Tesseract.recognize(
+      processedBase64,
+      "heb+eng",
+      {
+        logger:m=>{
+          if(m.status==="recognizing text")
+            setScanMsg(`מזהה… ${Math.round(m.progress*100)}%`);
+        }
       }
+    );
 
-      setScanMsg("מנתח עם AI…");
+    setScanMsg("מפרסר פריטים…");
 
-      const resp=await fetch("/api/anthropic",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1500,
-          messages:[{
-            role:"user",
-            content:[
-            mediaType==="application/pdf"
-            ? {type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}}
-            : {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
-              {
-                type:"text",
-                text:`אתה מנתח קבלות קניות. חלץ את כל פריטי המוצרים מהקבלה הזו.
+    // ── שלב 4: עיבוד חכם של הטקסט ──
+    const parsed=parseReceiptText(text);
 
-החזר תשובה במבנה JSON בלבד, ללא טקסט נוסף, בפורמט הזה:
-{"items":[{"name":"שם המוצר","qty":"1","price":0}]}
-
-כללים:
-- name: שם המוצר בעברית כפי שמופיע בקבלה
-- qty: כמות (ברירת מחדל "1")  
-- price: מחיר ליחידה כמספר (ללא סימן מטבע)
-- אל תכלול: סה"כ, מע"מ, הנחות, שורות ריקות, שורת תשלום
-- אם אין מוצרים ברורים, החזר {"items":[]}`
-              }
-            ]
-          }]
-        })
-      });
-
-      const data=await resp.json();
-      const text=(data.content||[]).map(b=>b.text||"").join("").trim();
-
-      let parsed=[];
-      try{
-        // נקה markdown אם יש
-        const clean=text.replace(/```json|```/g,"").trim();
-        const json=JSON.parse(clean);
-        parsed=(json.items||[])
-          .filter(i=>i.name&&i.name.length>1)
-          .map(i=>({
-            id:uid(),
-            name:String(i.name).trim(),
-            qty:String(i.qty||"1"),
-            checked:false,
-            price:+i.price||0
-          }));
-      }catch(err){
-        console.error("Parse error:",err,"Raw:",text);
-        setScanMsg("שגיאה בפרסור התשובה");
-        setTimeout(()=>setScanMsg(""),4000);
-        e.target.value="";return;
-      }
-
-      if(parsed.length){
-        setPreviewItems(parsed);
-        setScanMsg("");
-      }else{
-        setScanMsg("לא זוהו פריטים — נסה תמונה ברורה יותר");
-        setTimeout(()=>setScanMsg(""),4000);
-      }
-    }catch(err){
-      console.error(err);
-      setScanMsg("שגיאה בקריאת הקבלה");
+    if(parsed.length){
+      setPreviewItems(parsed);
+      setScanMsg("");
+    } else {
+      setScanMsg("לא זוהו פריטים — נסה תמונה ברורה יותר");
       setTimeout(()=>setScanMsg(""),4000);
     }
-    e.target.value="";
-  };
+  }catch(err){
+    console.error(err);
+    setScanMsg("שגיאה — נסה שוב");
+    setTimeout(()=>setScanMsg(""),4000);
+  }
+  e.target.value="";
+};
 
   const confirmPreview=()=>{
     if(!previewItems)return;
@@ -875,7 +934,7 @@ const handleReceiptUpload=async e=>{
       </Card>
 
       {/* Receipt upload */}
-      <input ref={fileRef} type="file" accept="image/*,application/pdf" onChange={handleReceiptUpload} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleReceiptUpload} style={{display:"none"}}/>
       <Card style={{border:`1.5px dashed ${T.border}`,background:T.bg,padding:14,cursor:"pointer"}} onClick={()=>fileRef.current?.click()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           <Icon name="photo" size={16} color={T.textSub}/>
