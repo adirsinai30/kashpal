@@ -547,7 +547,8 @@ function ExpensesTab({expenses,setExpenses,cats,month,year,specialItems,setSpeci
         {diff>5&&<Card style={{background:T.navyLight,border:`1px solid ${T.navyBorder}`,padding:16}}><div style={{fontSize:11,color:T.navyMid,fontWeight:700,marginBottom:4}}>סוגרים חשבון</div><div style={{fontSize:17,fontWeight:600,color:T.navy}}>{from}: {fmt(diff)}</div></Card>}
         <Card style={{padding:16}}>
           <div style={{display:"flex",gap:16,alignItems:"center"}}>
-            <div style={{flex:1,minWidth:0}}>
+          <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,color:T.text,marginBottom:14}}>חלוקה לקטגוריות</div>
               {cats.map(c=>{const sp=catSpent(c.id);return(
                 <div key={c.id} style={{marginBottom:11}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -1333,9 +1334,10 @@ const fetchPrices=async()=>{
           })()}
           {activeAssets.length>1&&portfolioView==="active"&&!searchQ&&(
             <Card style={{padding:16}}>
-              <div style={{display:"flex",gap:16,alignItems:"center"}}>
-              <div style={{flex:1}}>
-          {activeAssets.map((a,i)=>{
+              <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:14,fontWeight:600,color:T.text,marginBottom:14}}>חלוקת תיק</div>
+                  {activeAssets.map((a,i)=>{
                     const pct=((currentValILS(a)/totalPortfolio)*100).toFixed(1);
                     const colors=[T.navy,"#2563ab","#7c3aed","#be185d","#1a6b3c","#6b5c3e"];
                     const color=colors[i%6];
@@ -1356,7 +1358,7 @@ const fetchPrices=async()=>{
                     );
                   })}
               </div>
-                <Donut slices={activeAssets.map((a,i)=>({val:currentValILS(a),color:[T.navy,"#2563ab","#7c3aed","#be185d","#1a6b3c","#6b5c3e"][i%6]}))} size={120}/>
+                <Donut slices={activeAssets.map((a,i)=>({val:currentValILS(a),color:[T.navy,"#2563ab","#7c3aed","#be185d","#1a6b3c","#6b5c3e"][i%6]}))} size={Math.min(120,window.innerWidth-240)}/>
               </div>
             </Card>
           )}
