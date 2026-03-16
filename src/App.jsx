@@ -1051,12 +1051,7 @@ function InvestSection({ tab, setTab }) {
   const [pricesError,setPricesError]=useState("");
   const [lastUpdated,setLastUpdated]=useState(null);
   const [news,setNews]=useState([]);
-  // const [newsLoading,setNewsLoading]=useState(false);
-  // const [newsSearch,setNewsSearch]=useState("");
-  // const [dailySummary,setDailySummary]=useState("");
-  // const [summaryLoading,setSummaryLoading]=useState(false);
   const [agentQuery,setAgentQuery]=useState("");
-  const [agentResponse,setAgentResponse]=useState("");
   const [agentLoading,setAgentLoading]=useState(false);
   const [newsItems,     setNewsItems]     = useState([]);
   const [newsLoading,   setNewsLoading]   = useState(false);
@@ -1252,73 +1247,60 @@ const fetchNews = async (force=false) => {
 
     setPricesLoading(false);
   };
-  // const detectSentiment=(text)=>{
-  //   const pos=["עלייה","זינוק","שיא","רווח","חיובי","עולה","צמיחה","surge","rally","gain","rise","up","bull","beat","record","high","growth","profit"];
-  //   const neg=["ירידה","צניחה","הפסד","שלילי","נופל","משבר","drop","fall","loss","down","bear","miss","crash","risk","decline","sell","lower"];
-  //   const t=text.toLowerCase();const p=pos.filter(w=>t.includes(w)).length;const n=neg.filter(w=>t.includes(w)).length;
-  //   return p>n?"positive":n>p?"negative":"neutral";
-  // };
-  // const RSS_FEEDS=[
-  //   {url:"https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC,^DJI&region=US&lang=en-US",source:"Yahoo Finance"},
-  //   {url:"https://www.investing.com/rss/news_25.rss",source:"Investing.com"},
-  //   {url:"https://feeds.marketwatch.com/marketwatch/topstories/",source:"MarketWatch"},
-  //   {url:"https://rss.cnn.com/rss/money_latest.rss",source:"CNN Money"},
-  // ];
-  // const fetchNews=async(customQuery="")=>{
-  //   setNewsLoading(true);
-  //   const tickers=assets.map(a=>extractTicker(a.security));
-  //   const topics=[...customTopics,...watchlist,...tickers];
-  //   const filterTerms=customQuery?customQuery.toLowerCase().split(/\s+/):topics.map(t=>t.toLowerCase());
-  //   try{
-  //     const allItems=[];
-  //     for(const feed of RSS_FEEDS){
-  //       try{
-  //         const apiUrl=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&api_key=free&count=20`;
-  //         const resp=await fetch(apiUrl);const data=await resp.json();
-  //         if(data.items){data.items.forEach(item=>{allItems.push({title:item.title,summary:item.description?.replace(/<[^>]*>/g,"").slice(0,200)||"",source:feed.source,link:item.link,pubDate:item.pubDate,sentiment:detectSentiment((item.title||"")+" "+(item.description||"")),symbol:tickers.find(t=>(item.title||"").toUpperCase().includes(t))||"GENERAL"});});}
-  //       }catch{}
-  //     }
-  //     let filtered=allItems;
-  //     if(filterTerms.length>0&&!customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<5)filtered=allItems;}
-  //     else if(customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<3)filtered=allItems.slice(0,10);}
-  //     const sorted=filtered.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).slice(0,12);
-  //     setNews(sorted);
-  //     const date=new Date().toISOString().slice(0,10);const pos=sorted.filter(n=>n.sentiment==="positive").length;const neg=sorted.filter(n=>n.sentiment==="negative").length;const neu=sorted.filter(n=>n.sentiment==="neutral").length;
-  //     setSentimentLog(prev=>{const f=prev.filter(l=>l.date!==date);return[...f,{date,pos,neg,neu,total:sorted.length}].slice(-30);});
-  //   }catch{}
-  //   setNewsLoading(false);
-  // };
-  // const fetchDailySummary=async()=>{
-  //   setSummaryLoading(true);
-  //   try{
-  //     let currentNews=news;
-  //     if(currentNews.length===0){const resp=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC&region=US&lang=en-US")}&api_key=free&count=10`);const data=await resp.json();currentNews=(data.items||[]).map(item=>({title:item.title,sentiment:detectSentiment(item.title||"")}));}
-  //     const posCount=currentNews.filter(n=>n.sentiment==="positive").length;const negCount=currentNews.filter(n=>n.sentiment==="negative").length;
-  //     const mood=posCount>negCount?"חיובי":negCount>posCount?"שלילי":"מעורב";
-  //     const topTitles=currentNews.slice(0,5).map(n=>`• ${n.title}`).join("\n");
-  //     const tickers=assets.map(a=>extractTicker(a.security)).join(", ");
-  //     setDailySummary(`מצב השוק היום: ${mood} (${posCount} חיוביות, ${negCount} שליליות מתוך ${currentNews.length} כותרות).\n\nכותרות מובילות:\n${topTitles}\n\nמניות בתיק שלך: ${tickers||"לא הוגדרו"}.`);
-  //   }catch{setDailySummary("שגיאה בטעינת הסיכום");}
-  //   setSummaryLoading(false);
-  // };
   const priceAlerts=assets.flatMap(a=>{const ticker=extractTicker(a.security);const current=prices[ticker];const avg=avgBuyPrice(a);if(!current||!avg)return[];const changePct=((current-avg)/avg)*100;if(Math.abs(changePct)>=alertThresh)return[{security:a.security,ticker,changePct,current,avg}];return[];});
-  const runAgent=async()=>{
-    if(!agentQuery.trim())return;setAgentLoading(true);
-    const totalPortfolioILS=assets.reduce((s,a)=>s+currentValILS(a),0);
-    const portfolioLines=assets.map(a=>{const ticker=extractTicker(a.security);const price=prices[ticker];const shrs=totalShares(a);const avg=avgBuyPrice(a);const valILS=currentValILS(a);const pnl=unrealizedPnLILS(a);const pnlPct=avg&&price?(((price-avg)/avg)*100).toFixed(1):"?";const weight=totalPortfolioILS?((valILS/totalPortfolioILS)*100).toFixed(1):"?";return `• ${a.security}: ${shrs.toFixed(4)} יח׳ | קנייה $${avg?.toFixed(2)||"?"} | נוכחי $${price?.toFixed(2)||"?"} | שווי ${fmt(valILS)} (${weight}%) | P&L ${pnl>=0?"+":""}${fmt(pnl)} (${pnlPct}%)`;}).join("");
-    const realized=`רווח ממומש כולל: ${totalRealized>=0?"+":""}${fmt(totalRealized)} | רווח דיבידנדים: +${fmt(allDividendsTotal)}`;
-    const totalVal=`שווי תיק כולל: ${fmt(totalPortfolioILS)}`;
-    const newsContext=news.slice(0,6).map(n=>`  - [${n.sentiment}] ${n.title} (${n.source})`).join("");
-    const sp500=prices["SPY"]||null;const nasdaq=prices["QQQ"]||null;
-    const benchmarks=[sp500?`S&P 500 (SPY): $${sp500}`:null,nasdaq?`Nasdaq (QQQ): $${nasdaq}`:null].filter(Boolean).join(" | ");
-    const systemPrompt=`אתה סוכן BI פיננסי חכם. אתה מנתח תיקי השקעות ומספק תובנות מעשיות בעברית.\nהנחיות: תן המלצות ספציפיות, השווה למדדים כשרלוונטי, ציין אחוז חשיפה, זהה סיכונים/הזדמנויות.\nפורמט: קצר, ממוקד, עם מסקנה אחת ברורה בסוף.`;
-    const userPrompt=`תיק ההשקעות שלי:\n${portfolioLines}\n${totalVal} | ${realized}\n${benchmarks?`\nמדדי ייחוס: ${benchmarks}`:""}\n${newsContext?`\nחדשות שוק אחרונות:\n${newsContext}`:""}\n\nשאלה: ${agentQuery}`;
-    try{
-      const resp=await rateLimitedFetch({model:"claude-sonnet-4-20250514",max_tokens:600,system:systemPrompt,messages:[{role:"user",content:userPrompt}]});
-      const data=await resp.json();const text=(data.content||[]).map(b=>b.text||"").join("");
-      const entry={id:uid(),q:agentQuery,a:text,date:new Date().toISOString()};
-      setAgentHistory(h=>[entry,...h].slice(0,15));setAgentResponse(text);setAgentQuery("");
-    }catch{setAgentResponse("שגיאה בעיבוד. נסה שוב.");}
+  const runAgent = async () => {
+    if (!agentQuery.trim()) return;
+    const question = agentQuery.trim();
+    setAgentQuery("");
+    setAgentLoading(true);
+
+    const totalPortfolioILS = assets.reduce((s,a) => s + currentValILS(a), 0);
+    const portfolioLines = activeAssets.map(a => {
+      const ticker = extractTicker(a.security);
+      const price = prices[ticker];
+      const avg = avgBuyPrice(a);
+      const valILS = currentValILS(a);
+      const pnl = unrealizedPnLILS(a);
+      const pnlPct = avg && price ? (((price - avg) / avg) * 100).toFixed(1) : "?";
+      const weight = totalPortfolioILS ? ((valILS / totalPortfolioILS) * 100).toFixed(1) : "?";
+      return `${a.security}: ${totalShares(a).toFixed(4)} יח׳ | קנייה ${fmtForeign(avg,a.currency)} | נוכחי ${price ? fmtForeign(price,a.currency) : "לא ידוע"} | שווי ${fmt(valILS)} (${weight}%) | P&L ${pnl>=0?"+":""}${fmt(pnl)} (${pnlPct}%)`;
+    }).join("\n");
+
+    const newsContext = newsItems.length > 0
+      ? newsItems.map(g => `${g.label}: ${g.summary||"אין סיכום"}`).join("\n")
+      : "לא נמשכו חדשות";
+
+    const systemPrompt = `אתה סוכן השקעות אישי בשם סינריו. עונה בעברית בלבד.
+כללים: תשובות ספציפיות עם מספרים מהתיק. תמציתי (3-5 משפטים). אל תמליץ על קנייה/מכירה חד-משמעית — הצג שיקולים. אם אין מחירים — ציין.
+
+תיק:
+${portfolioLines || "ריק"}
+סה"כ: ${fmt(totalPortfolioILS)} | P&L: ${fmt(totalPnL)} | ממומש: ${fmt(totalRealized)}
+
+חדשות:
+${newsContext}`;
+
+    const conversationHistory = agentHistory.slice(-4).flatMap(h => [
+      { role: "user",      content: h.q },
+      { role: "assistant", content: h.a }
+    ]);
+
+    try {
+      const resp = await fetch("/api/anthropic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [...conversationHistory, { role: "user", content: question }]
+        })
+      });
+      const data = await resp.json();
+      const text = (data.content||[]).map(b=>b.text||"").join("") || data.error || "שגיאה — נסה שוב";
+      setAgentHistory(h => [...h, { id:uid(), q:question, a:text, date:new Date().toISOString() }]);
+    } catch {
+      setAgentHistory(h => [...h, { id:uid(), q:question, a:"שגיאה בחיבור. נסה שוב.", date:new Date().toISOString() }]);
+    }
     setAgentLoading(false);
   };
 
@@ -1731,65 +1713,103 @@ const fetchNews = async (force=false) => {
 
         </div>
       )}
-      {tab==="agent"&&(
+{tab==="agent"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <Card style={{background:`linear-gradient(135deg,#1e3a5f 0%,#2d5282 100%)`,border:"none",padding:18}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-              <div style={{width:34,height:34,borderRadius:11,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="sparkle" size={17} color="#fff"/></div>
-              <div><div style={{fontSize:15,fontWeight:700,color:"#fff"}}>סוכן השקעות חכם</div><div style={{fontSize:11,color:"rgba(255,255,255,.55)"}}>מנתח את התיק שלך עם מידע עדכני מהרשת</div></div>
-            </div>
-            <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,.15)",paddingTop:10}}>
-              {assets.slice(0,3).map(a=>(
-                <div key={a.id} style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:11,color:"rgba(255,255,255,.6)"}}>{a.security}</span>
-                  <span style={{fontSize:11,color:"rgba(255,255,255,.85)",fontWeight:600}}>{fmt(currentValILS(a))}</span>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{width:34,height:34,borderRadius:11,background:"rgba(255,255,255,.15)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Icon name="sparkle" size={17} color="#fff"/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>סוכן השקעות</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.55)"}}>
+                  {Object.keys(prices).length>0?"מחירים עדכניים ✓":"ללא מחירים — רענן לניתוח מדויק"}
                 </div>
-              ))}
-              {assets.length>3&&<div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginTop:2}}>ועוד {assets.length-3} ניירות…</div>}
+              </div>
+              {agentHistory.length>0&&(
+                <button onClick={()=>setAgentHistory([])}
+                  style={{background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11,color:"rgba(255,255,255,.8)",fontFamily:T.font,fontWeight:600}}>
+                  שיחה חדשה
+                </button>
+              )}
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {activeAssets.map(a=>{
+                const ticker=extractTicker(a.security);
+                const price=prices[ticker];
+                const avg=avgBuyPrice(a);
+                const pnlPct=price&&avg?(((price-avg)/avg)*100):null;
+                return(
+                  <div key={a.id} style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",border:"1px solid rgba(255,255,255,.15)"}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#fff"}}>{ticker}</div>
+                    {pnlPct!==null&&<div style={{fontSize:10,fontWeight:600,color:pnlPct>=0?"#86efac":"#fca5a5"}}>{pnlPct>=0?"+":""}{pnlPct.toFixed(1)}%</div>}
+                  </div>
+                );
+              })}
             </div>
           </Card>
-          <Card style={{padding:14}}>
-            <textarea value={agentQuery} onChange={e=>setAgentQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))runAgent();}} placeholder="שאל כל שאלה על ההשקעות שלך… (⌘Enter לשליחה)" rows={3} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",color:T.text,fontSize:14,outline:"none",fontFamily:T.font,resize:"none",width:"100%",direction:"rtl",marginBottom:10}}/>
-            <Btn onClick={runAgent} disabled={agentLoading||!agentQuery.trim()} style={{width:"100%",padding:"12px",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-              {agentLoading?<><div style={{width:14,height:14,borderRadius:"50%",border:"2px solid #fff",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>מנתח…</>:<><Icon name="sparkle" size={14} color="#fff"/>שלח לסוכן</>}
-            </Btn>
-          </Card>
-          {!agentResponse&&(
-            <div>
-              <div style={{fontSize:11,color:T.textSub,fontWeight:700,marginBottom:8}}>שאלות מוצעות</div>
-              {["האם התיק שלי מגוון מספיק?","מה הנייר עם הביצועים הגרועים ביותר? האם למכור?","מה הריבית הנוכחית של הפד ואיך זה משפיע עלי?","האם יש הזדמנות קנייה בנאסד״ק כרגע?"].map((s,i)=>(
-                <button key={i} onClick={()=>setAgentQuery(s)} style={{width:"100%",background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 14px",textAlign:"right",cursor:"pointer",fontFamily:T.font,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <Icon name="trending" size={13} color={T.navyMid}/>{s}
+
+          {agentHistory.map(h=>(
+            <div key={h.id}>
+              <div style={{display:"flex",justifyContent:"flex-start",marginBottom:6}}>
+                <div style={{maxWidth:"78%",background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:"14px 14px 14px 2px",padding:"10px 14px",fontSize:13,color:T.navy,fontWeight:600,direction:"rtl",lineHeight:1.5}}>
+                  {h.q}
+                </div>
+              </div>
+              <div style={{display:"flex",justifyContent:"flex-end"}}>
+                <div style={{maxWidth:"85%",background:T.surface,border:`1px solid ${T.border}`,borderRadius:"14px 14px 2px 14px",padding:"12px 14px",fontSize:13,color:T.text,lineHeight:1.8,direction:"rtl",whiteSpace:"pre-wrap"}}>
+                  {h.a}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {agentLoading&&(
+            <div style={{display:"flex",justifyContent:"flex-end"}}>
+              <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:"14px 14px 2px 14px",padding:"14px 18px",display:"flex",alignItems:"center",gap:5}}>
+                {[0,1,2].map(i=>(
+                  <div key={i} style={{width:7,height:7,borderRadius:"50%",background:T.navy,animation:`agentDot 1.2s ease-in-out ${i*.2}s infinite`}}/>
+                ))}
+                <style>{`@keyframes agentDot{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-6px);opacity:1}}`}</style>
+              </div>
+            </div>
+          )}
+
+          {agentHistory.length===0&&!agentLoading&&(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{fontSize:11,color:T.textSub,fontWeight:700,marginBottom:4,textAlign:"right"}}>שאל את הסוכן</div>
+              {[
+                ...activeAssets.slice(0,2).map(a=>`האם כדאי להגדיל את הפוזיציה ב-${extractTicker(a.security)}?`),
+                "מהו הנייר עם הביצועים הגרועים? האם למכור?",
+                "האם התיק שלי מגוון מספיק?",
+                "השווה את התיק למדד S&P 500",
+                "מה הסיכונים העיקריים בתיק?",
+              ].map((s,i)=>(
+                <button key={i} onClick={()=>setAgentQuery(s)}
+                  style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",textAlign:"right",cursor:"pointer",fontFamily:T.font,fontSize:13,color:T.text,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,transition:"border-color .15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.navy}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                  <Icon name="trending" size={13} color={T.navyMid}/>
+                  <span>{s}</span>
                 </button>
               ))}
             </div>
           )}
-          {agentResponse&&(
-            <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
-                <div style={{width:22,height:22,borderRadius:7,background:T.navy,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="sparkle" size={12} color="#fff"/></div>
-                <span style={{fontSize:12,fontWeight:700,color:T.navy}}>תשובת הסוכן</span>
-                <button onClick={()=>setAgentResponse("")} style={{marginRight:"auto",background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:18,lineHeight:1,padding:0}}>×</button>
-              </div>
-              <div style={{fontSize:13,color:T.text,lineHeight:1.9,whiteSpace:"pre-wrap",direction:"rtl"}}>{agentResponse}</div>
-              <button onClick={()=>setAgentQuery("")} style={{marginTop:12,background:"none",border:`1px solid ${T.navyBorder}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12,color:T.navy,fontFamily:T.font,fontWeight:600}}>שאלה נוספת</button>
-            </Card>
-          )}
-          {agentHistory.length>0&&(
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <div style={{fontSize:11,color:T.textSub,fontWeight:700}}>שיחות קודמות</div>
-                <button onClick={()=>setAgentHistory([])} style={{fontSize:11,color:T.danger,fontFamily:T.font,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>נקה</button>
-              </div>
-              {agentHistory.map(h=>(
-                <Card key={h.id} style={{padding:12,marginBottom:8,cursor:"pointer"}} onClick={()=>setAgentResponse(h.a)}>
-                  <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:3}}>{h.q}</div>
-                  <div style={{fontSize:11,color:T.textSub,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.a.slice(0,90)}…</div>
-                  <div style={{fontSize:10,color:T.textSub,marginTop:4}}>{new Date(h.date).toLocaleDateString("he-IL")}</div>
-                </Card>
-              ))}
+
+          <div style={{position:"sticky",bottom:0,paddingTop:8,background:T.bg}}>
+            <div style={{display:"flex",gap:8,alignItems:"flex-end",background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"8px 8px 8px 12px"}}>
+              <textarea value={agentQuery} onChange={e=>setAgentQuery(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();runAgent();}}}
+                placeholder="שאל שאלה על התיק שלך… (Enter לשליחה)"
+                rows={2}
+                style={{flex:1,background:"transparent",border:"none",color:T.text,fontSize:14,outline:"none",fontFamily:T.font,resize:"none",direction:"rtl",lineHeight:1.5}}/>
+              <button onClick={runAgent} disabled={agentLoading||!agentQuery.trim()}
+                style={{width:36,height:36,borderRadius:10,flexShrink:0,background:agentQuery.trim()?T.navy:T.border,border:"none",cursor:agentQuery.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .15s"}}>
+                <Icon name="plane" size={15} color="#fff"/>
+              </button>
             </div>
-          )}
+            <div style={{fontSize:10,color:T.textSub,textAlign:"center",marginTop:4}}>Enter לשליחה · Shift+Enter לשורה חדשה</div>
+          </div>
         </div>
       )}
     </div>
