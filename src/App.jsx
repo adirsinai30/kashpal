@@ -1051,13 +1051,18 @@ function InvestSection({ tab, setTab }) {
   const [pricesError,setPricesError]=useState("");
   const [lastUpdated,setLastUpdated]=useState(null);
   const [news,setNews]=useState([]);
-  const [newsLoading,setNewsLoading]=useState(false);
-  const [newsSearch,setNewsSearch]=useState("");
-  const [dailySummary,setDailySummary]=useState("");
-  const [summaryLoading,setSummaryLoading]=useState(false);
+  // const [newsLoading,setNewsLoading]=useState(false);
+  // const [newsSearch,setNewsSearch]=useState("");
+  // const [dailySummary,setDailySummary]=useState("");
+  // const [summaryLoading,setSummaryLoading]=useState(false);
   const [agentQuery,setAgentQuery]=useState("");
   const [agentResponse,setAgentResponse]=useState("");
   const [agentLoading,setAgentLoading]=useState(false);
+  const [newsItems,     setNewsItems]     = useState([]);
+  const [newsLoading,   setNewsLoading]   = useState(false);
+  const [newsError,     setNewsError]     = useState("");
+  const [newsLastFetch, setNewsLastFetch] = useState(null);
+  const NEWS_CACHE_MIN = 30; // דקות בין רענונים
   const blankAsset={security:"",shares:"",price:"",commission:"0",date:today(),currency:"USD",rateUsed:"3.68"};
   const blankPurchase={shares:"",price:"",commission:"0",date:today()};
   const blankSale={shares:"",price:"",commission:"0",date:today()};
@@ -1120,7 +1125,73 @@ function InvestSection({ tab, setTab }) {
   };
   const deleteDividend=(id)=>{setDividends(dividends.filter(d=>d.id!==id));setConfirmDiv(null);};
 
-const fetchPrices=async()=>{
+  useEffect(()=>{
+    if(tab==="news" && newsItems.length===0) fetchNews();
+  },[tab]);
+
+  const fetchNews = async (force=false) => {
+    // cache — אל תרענן אם עדכנת לאחרונה
+    if(!force && newsLastFetch) {
+      const minSince = (Date.now() - newsLastFetch.getTime()) / 60000;
+      if(minSince < NEWS_CACHE_MIN) {
+        return; // עדיין טרי
+      }
+    }
+    setNewsLoading(true);
+    setNewsError("");
+    try {
+      const tickers = assets.map(a => extractTicker(a.security));
+      const queries = [
+        // שאילתות ספציפיות לתיק
+        ...tickers.map(t => ({ q: t, label: t, type: "stock" })),
+        // שאילתות שוק כלליות
+        { q: "stock market today", label: "שוק כללי", type: "market" },
+        { q: "S&P 500 nasdaq", label: "מדדים", type: "market" },
+      ];
+
+      const results = [];
+
+      for (const query of queries) {
+        try {
+          const r = await fetch(`/api/news?q=${encodeURIComponent(query.q)}`);
+          if (!r.ok) continue;
+          const data = await r.json();
+          if (!data.items?.length) continue;
+
+          // תרגם כותרות
+          const titles = data.items.map(i => i.title);
+          const tr = await fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ texts: titles })
+          });
+          const trData = await tr.json();
+          const translations = trData.translations || titles;
+
+          results.push({
+            label: query.label,
+            type: query.type,
+            items: data.items.map((item, i) => ({
+              ...item,
+              titleHe: translations[i] || item.title
+            }))
+          });
+        } catch {}
+      }
+
+      setNewsItems(results);
+      setNewsLastFetch(new Date());
+    } catch (err) {
+      setNewsError("שגיאה בטעינת חדשות");
+    }
+    setNewsLoading(false);
+  };
+
+  useEffect(()=>{
+    if(tab==="news" && newsItems.length===0) fetchNews();
+  },[tab]);
+
+  const fetchPrices=async()=>{
     const allTickers=[...new Set([
       ...assets.map(a=>extractTicker(a.security)),
       ...watchlist
@@ -1171,55 +1242,55 @@ const fetchPrices=async()=>{
 
     setPricesLoading(false);
   };
-  const detectSentiment=(text)=>{
-    const pos=["עלייה","זינוק","שיא","רווח","חיובי","עולה","צמיחה","surge","rally","gain","rise","up","bull","beat","record","high","growth","profit"];
-    const neg=["ירידה","צניחה","הפסד","שלילי","נופל","משבר","drop","fall","loss","down","bear","miss","crash","risk","decline","sell","lower"];
-    const t=text.toLowerCase();const p=pos.filter(w=>t.includes(w)).length;const n=neg.filter(w=>t.includes(w)).length;
-    return p>n?"positive":n>p?"negative":"neutral";
-  };
-  const RSS_FEEDS=[
-    {url:"https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC,^DJI&region=US&lang=en-US",source:"Yahoo Finance"},
-    {url:"https://www.investing.com/rss/news_25.rss",source:"Investing.com"},
-    {url:"https://feeds.marketwatch.com/marketwatch/topstories/",source:"MarketWatch"},
-    {url:"https://rss.cnn.com/rss/money_latest.rss",source:"CNN Money"},
-  ];
-  const fetchNews=async(customQuery="")=>{
-    setNewsLoading(true);
-    const tickers=assets.map(a=>extractTicker(a.security));
-    const topics=[...customTopics,...watchlist,...tickers];
-    const filterTerms=customQuery?customQuery.toLowerCase().split(/\s+/):topics.map(t=>t.toLowerCase());
-    try{
-      const allItems=[];
-      for(const feed of RSS_FEEDS){
-        try{
-          const apiUrl=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&api_key=free&count=20`;
-          const resp=await fetch(apiUrl);const data=await resp.json();
-          if(data.items){data.items.forEach(item=>{allItems.push({title:item.title,summary:item.description?.replace(/<[^>]*>/g,"").slice(0,200)||"",source:feed.source,link:item.link,pubDate:item.pubDate,sentiment:detectSentiment((item.title||"")+" "+(item.description||"")),symbol:tickers.find(t=>(item.title||"").toUpperCase().includes(t))||"GENERAL"});});}
-        }catch{}
-      }
-      let filtered=allItems;
-      if(filterTerms.length>0&&!customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<5)filtered=allItems;}
-      else if(customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<3)filtered=allItems.slice(0,10);}
-      const sorted=filtered.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).slice(0,12);
-      setNews(sorted);
-      const date=new Date().toISOString().slice(0,10);const pos=sorted.filter(n=>n.sentiment==="positive").length;const neg=sorted.filter(n=>n.sentiment==="negative").length;const neu=sorted.filter(n=>n.sentiment==="neutral").length;
-      setSentimentLog(prev=>{const f=prev.filter(l=>l.date!==date);return[...f,{date,pos,neg,neu,total:sorted.length}].slice(-30);});
-    }catch{}
-    setNewsLoading(false);
-  };
-  const fetchDailySummary=async()=>{
-    setSummaryLoading(true);
-    try{
-      let currentNews=news;
-      if(currentNews.length===0){const resp=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC&region=US&lang=en-US")}&api_key=free&count=10`);const data=await resp.json();currentNews=(data.items||[]).map(item=>({title:item.title,sentiment:detectSentiment(item.title||"")}));}
-      const posCount=currentNews.filter(n=>n.sentiment==="positive").length;const negCount=currentNews.filter(n=>n.sentiment==="negative").length;
-      const mood=posCount>negCount?"חיובי":negCount>posCount?"שלילי":"מעורב";
-      const topTitles=currentNews.slice(0,5).map(n=>`• ${n.title}`).join("\n");
-      const tickers=assets.map(a=>extractTicker(a.security)).join(", ");
-      setDailySummary(`מצב השוק היום: ${mood} (${posCount} חיוביות, ${negCount} שליליות מתוך ${currentNews.length} כותרות).\n\nכותרות מובילות:\n${topTitles}\n\nמניות בתיק שלך: ${tickers||"לא הוגדרו"}.`);
-    }catch{setDailySummary("שגיאה בטעינת הסיכום");}
-    setSummaryLoading(false);
-  };
+  // const detectSentiment=(text)=>{
+  //   const pos=["עלייה","זינוק","שיא","רווח","חיובי","עולה","צמיחה","surge","rally","gain","rise","up","bull","beat","record","high","growth","profit"];
+  //   const neg=["ירידה","צניחה","הפסד","שלילי","נופל","משבר","drop","fall","loss","down","bear","miss","crash","risk","decline","sell","lower"];
+  //   const t=text.toLowerCase();const p=pos.filter(w=>t.includes(w)).length;const n=neg.filter(w=>t.includes(w)).length;
+  //   return p>n?"positive":n>p?"negative":"neutral";
+  // };
+  // const RSS_FEEDS=[
+  //   {url:"https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC,^DJI&region=US&lang=en-US",source:"Yahoo Finance"},
+  //   {url:"https://www.investing.com/rss/news_25.rss",source:"Investing.com"},
+  //   {url:"https://feeds.marketwatch.com/marketwatch/topstories/",source:"MarketWatch"},
+  //   {url:"https://rss.cnn.com/rss/money_latest.rss",source:"CNN Money"},
+  // ];
+  // const fetchNews=async(customQuery="")=>{
+  //   setNewsLoading(true);
+  //   const tickers=assets.map(a=>extractTicker(a.security));
+  //   const topics=[...customTopics,...watchlist,...tickers];
+  //   const filterTerms=customQuery?customQuery.toLowerCase().split(/\s+/):topics.map(t=>t.toLowerCase());
+  //   try{
+  //     const allItems=[];
+  //     for(const feed of RSS_FEEDS){
+  //       try{
+  //         const apiUrl=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}&api_key=free&count=20`;
+  //         const resp=await fetch(apiUrl);const data=await resp.json();
+  //         if(data.items){data.items.forEach(item=>{allItems.push({title:item.title,summary:item.description?.replace(/<[^>]*>/g,"").slice(0,200)||"",source:feed.source,link:item.link,pubDate:item.pubDate,sentiment:detectSentiment((item.title||"")+" "+(item.description||"")),symbol:tickers.find(t=>(item.title||"").toUpperCase().includes(t))||"GENERAL"});});}
+  //       }catch{}
+  //     }
+  //     let filtered=allItems;
+  //     if(filterTerms.length>0&&!customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<5)filtered=allItems;}
+  //     else if(customQuery){filtered=allItems.filter(item=>filterTerms.some(term=>(item.title+" "+item.summary).toLowerCase().includes(term)));if(filtered.length<3)filtered=allItems.slice(0,10);}
+  //     const sorted=filtered.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).slice(0,12);
+  //     setNews(sorted);
+  //     const date=new Date().toISOString().slice(0,10);const pos=sorted.filter(n=>n.sentiment==="positive").length;const neg=sorted.filter(n=>n.sentiment==="negative").length;const neu=sorted.filter(n=>n.sentiment==="neutral").length;
+  //     setSentimentLog(prev=>{const f=prev.filter(l=>l.date!==date);return[...f,{date,pos,neg,neu,total:sorted.length}].slice(-30);});
+  //   }catch{}
+  //   setNewsLoading(false);
+  // };
+  // const fetchDailySummary=async()=>{
+  //   setSummaryLoading(true);
+  //   try{
+  //     let currentNews=news;
+  //     if(currentNews.length===0){const resp=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent("https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^IXIC&region=US&lang=en-US")}&api_key=free&count=10`);const data=await resp.json();currentNews=(data.items||[]).map(item=>({title:item.title,sentiment:detectSentiment(item.title||"")}));}
+  //     const posCount=currentNews.filter(n=>n.sentiment==="positive").length;const negCount=currentNews.filter(n=>n.sentiment==="negative").length;
+  //     const mood=posCount>negCount?"חיובי":negCount>posCount?"שלילי":"מעורב";
+  //     const topTitles=currentNews.slice(0,5).map(n=>`• ${n.title}`).join("\n");
+  //     const tickers=assets.map(a=>extractTicker(a.security)).join(", ");
+  //     setDailySummary(`מצב השוק היום: ${mood} (${posCount} חיוביות, ${negCount} שליליות מתוך ${currentNews.length} כותרות).\n\nכותרות מובילות:\n${topTitles}\n\nמניות בתיק שלך: ${tickers||"לא הוגדרו"}.`);
+  //   }catch{setDailySummary("שגיאה בטעינת הסיכום");}
+  //   setSummaryLoading(false);
+  // };
   const priceAlerts=assets.flatMap(a=>{const ticker=extractTicker(a.security);const current=prices[ticker];const avg=avgBuyPrice(a);if(!current||!avg)return[];const changePct=((current-avg)/avg)*100;if(Math.abs(changePct)>=alertThresh)return[{security:a.security,ticker,changePct,current,avg}];return[];});
   const runAgent=async()=>{
     if(!agentQuery.trim())return;setAgentLoading(true);
@@ -1464,97 +1535,130 @@ const fetchPrices=async()=>{
         </div>
       )}
 
-      {tab==="news"&&(
+{tab==="news"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight,padding:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{display:"flex",alignItems:"center",gap:7}}><Icon name="insights" size={14} color={T.navy}/><span style={{fontSize:13,fontWeight:700,color:T.navy}}>סיכום יומי</span></div>
-              <button onClick={fetchDailySummary} disabled={summaryLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:9,border:`1px solid ${T.navyBorder}`,background:"#fff",color:T.navy,fontSize:11,fontFamily:T.font,fontWeight:600,cursor:summaryLoading?"wait":"pointer"}}>
-                {summaryLoading?<div style={{width:10,height:10,borderRadius:"50%",border:`2px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>:"🔄"}
-                {summaryLoading?"טוען…":"עדכן"}
-              </button>
+
+          {/* כפתור רענון */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:22,fontWeight:300,fontFamily:T.display,color:T.text}}>חדשות שוק</div>
+              {newsLastFetch&&<div style={{fontSize:11,color:T.textSub,marginTop:2}}>עודכן: {newsLastFetch.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})}</div>}
             </div>
-            {dailySummary?<div style={{fontSize:13,color:T.text,lineHeight:1.8,direction:"rtl"}}>{dailySummary}</div>:<div style={{fontSize:12,color:T.textSub,textAlign:"center",padding:"8px 0"}}>לחץ "עדכן" לסיכום שוק יומי מבוסס AI</div>}
-          </Card>
-          <Card style={{padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:10}}>מעקב סמלים</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-              {watchlist.map(sym=>(
-                <div key={sym} style={{display:"flex",alignItems:"center",gap:4,background:T.navyLight,border:`1px solid ${T.navyBorder}`,borderRadius:99,padding:"5px 10px"}}>
-                  <span style={{fontSize:12,fontWeight:700,color:T.navy}}>{sym}</span>
-                  {prices[sym]&&<span style={{fontSize:10,color:T.textSub}}>${Number(prices[sym]).toLocaleString()}</span>}
-                  <button onClick={()=>setWatchlist(watchlist.filter(s=>s!==sym))} style={{background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
-                </div>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <Inp placeholder="הוסף סמל (TSLA, ETH...)" value={newWatch} onChange={e=>setNewWatch(e.target.value.toUpperCase())} onKeyDown={e=>{if(e.key==="Enter"&&newWatch.trim()){setWatchlist([...watchlist,newWatch.trim()]);setNewWatch("");}}} style={{flex:1}}/>
-              <Btn onClick={()=>{if(newWatch.trim()){setWatchlist([...watchlist,newWatch.trim()]);setNewWatch("");}}} style={{padding:"10px 14px"}}><Icon name="plus" size={13} color="#fff"/></Btn>
-            </div>
-            <div style={{marginTop:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <span style={{fontSize:11,color:T.textMid,fontWeight:600}}>⚡ התראה על שינוי ≥</span>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                {[2,3,5,10].map(v=><button key={v} onClick={()=>setAlertThresh(v)} style={{padding:"4px 10px",borderRadius:99,fontFamily:T.font,fontSize:11,fontWeight:700,cursor:"pointer",border:`1px solid ${alertThresh===v?T.navy:T.border}`,background:alertThresh===v?T.navy:"transparent",color:alertThresh===v?"#fff":T.textSub}}>{v}%</button>)}
-              </div>
-            </div>
-          </Card>
-          <Card style={{padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:10}}>נושאי חיפוש</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-              {customTopics.map((t,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:4,background:T.bg,border:`1px solid ${T.border}`,borderRadius:99,padding:"5px 10px"}}>
-                  <span style={{fontSize:12,color:T.text}}>{t}</span>
-                  <button onClick={()=>setCustomTopics(customTopics.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:T.textSub,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button>
-                </div>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <Inp placeholder="נושא חדש (ריביות, AI, נפט...)" value={newTopic} onChange={e=>setNewTopic(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newTopic.trim()){setCustomTopics([...customTopics,newTopic.trim()]);setNewTopic("");}}} style={{flex:1}}/>
-              <Btn onClick={()=>{if(newTopic.trim()){setCustomTopics([...customTopics,newTopic.trim()]);setNewTopic("");}}} style={{padding:"10px 14px"}}><Icon name="plus" size={13} color="#fff"/></Btn>
-            </div>
-          </Card>
-          <div style={{display:"flex",gap:8}}>
-            <Inp placeholder="חיפוש חופשי (למשל: ריבית פד, השפעת AI על מניות...)" value={newsSearch} onChange={e=>setNewsSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetchNews(newsSearch)} style={{flex:1}}/>
-            <button onClick={()=>fetchNews(newsSearch)} disabled={newsLoading} style={{display:"flex",alignItems:"center",gap:5,padding:"10px 16px",borderRadius:10,border:`1px solid ${T.navyBorder}`,background:T.navy,color:"#fff",fontSize:12,fontFamily:T.font,fontWeight:600,cursor:newsLoading?"wait":"pointer",flexShrink:0}}>
-              {newsLoading?<div style={{width:12,height:12,borderRadius:"50%",border:"2px solid #fff",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>:<Icon name="insights" size={13} color="#fff"/>}
-              {newsLoading?"טוען…":"חדשות"}
+            <button onClick={fetchNews} disabled={newsLoading}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"9px 16px",borderRadius:10,
+                border:`1px solid ${T.navyBorder}`,background:T.navy,color:"#fff",
+                fontSize:12,fontFamily:T.font,fontWeight:600,cursor:newsLoading?"wait":"pointer"}}>
+              {newsLoading
+                ?<div style={{width:13,height:13,borderRadius:"50%",border:"2px solid #fff",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
+                :<Icon name="insights" size={13} color="#fff"/>}
+              {newsLoading?"טוען…":"רענן חדשות"}
             </button>
           </div>
-          {sentimentLog.length>1&&(
-            <Card style={{padding:16}}>
-              <div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:12}}>מגמת סנטימנט — {sentimentLog.length} טעינות</div>
-              <div style={{display:"flex",alignItems:"flex-end",gap:4,height:70}}>
-                {sentimentLog.slice(-14).map((l,i)=>{const maxV=Math.max(...sentimentLog.map(x=>x.total),1);const posH=Math.round((l.pos/maxV)*66);const negH=Math.round((l.neg/maxV)*66);return(
-                  <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                    <div style={{width:"100%",height:70,display:"flex",alignItems:"flex-end",gap:1,justifyContent:"center"}}>
-                      <div style={{width:"45%",height:posH,background:T.success,borderRadius:"2px 2px 0 0"}}/>
-                      <div style={{width:"45%",height:negH,background:T.danger,borderRadius:"2px 2px 0 0"}}/>
-                    </div>
-                  </div>
-                );})}
-              </div>
-              <div style={{display:"flex",gap:12,marginTop:6,fontSize:10,color:T.textSub}}>
-                <div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:8,height:8,borderRadius:2,background:T.success}}/> חיובי</div>
-                <div style={{display:"flex",alignItems:"center",gap:3}}><div style={{width:8,height:8,borderRadius:2,background:T.danger}}/> שלילי</div>
+
+          {newsError&&<div style={{background:T.dangerBg,border:`1px solid ${T.dangerBorder}`,borderRadius:10,padding:"10px 14px",fontSize:12,color:T.danger}}>{newsError}</div>}
+
+          {/* מצב ריק */}
+          {!newsLoading&&newsItems.length===0&&(
+            <Card style={{padding:40,textAlign:"center"}}>
+              <Icon name="insights" size={32} color={T.textSub}/>
+              <div style={{fontSize:14,color:T.textSub,marginTop:14,lineHeight:1.8}}>
+                לחץ "רענן חדשות" לקבלת עדכונים<br/>
+                <span style={{fontSize:12}}>חדשות על המניות שלך + עדכוני שוק כלליים</span>
               </div>
             </Card>
           )}
-          {news.length===0&&!newsLoading&&<Card style={{padding:32,textAlign:"center"}}><Icon name="insights" size={28} color={T.textSub}/><div style={{fontSize:13,color:T.textSub,marginTop:12,lineHeight:1.9}}>לחץ "חדשות" לקבלת עדכונים פיננסיים בזמן אמת<br/><span style={{fontSize:11}}>ניתן לחפש נושא ספציפי בשדה החיפוש</span></div></Card>}
-          {newsLoading&&<Card style={{padding:28,textAlign:"center"}}><div style={{width:22,height:22,borderRadius:"50%",border:`3px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/><div style={{fontSize:13,color:T.textSub}}>מחפש חדשות…</div></Card>}
-          {news.map((item,i)=>(
-            <Card key={i} style={{padding:14,borderRight:`3px solid ${sentColor(item.sentiment)}`}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                {item.symbol&&item.symbol!=="GENERAL"&&<span style={{fontSize:10,fontWeight:700,color:T.navy,background:T.navyLight,borderRadius:6,padding:"2px 7px",border:`1px solid ${T.navyBorder}`}}>{item.symbol}</span>}
-                <span style={{fontSize:10,color:sentColor(item.sentiment),fontWeight:700,background:sentBg(item.sentiment),borderRadius:99,padding:"2px 8px",border:`1px solid ${sentBdr(item.sentiment)}`}}>{item.sentiment==="positive"?"▲ חיובי":item.sentiment==="negative"?"▼ שלילי":"○ ניטרלי"}</span>
-                {item.source&&<span style={{fontSize:10,color:T.textSub,marginRight:"auto"}}>{item.source}</span>}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:5,lineHeight:1.5}}>
-                {item.link?<a href={item.link} target="_blank" rel="noopener noreferrer" style={{color:T.text,textDecoration:"none"}}>{item.title} ↗</a>:item.title}
-              </div>
-              {item.summary&&<div style={{fontSize:12,color:T.textMid,lineHeight:1.7}}>{item.summary}</div>}
-              {item.pubDate&&<div style={{fontSize:10,color:T.textSub,marginTop:4}}>{new Date(item.pubDate).toLocaleString("he-IL")}</div>}
+
+          {/* spinner כשטוען */}
+          {newsLoading&&(
+            <Card style={{padding:40,textAlign:"center"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",border:`3px solid ${T.navy}`,borderTopColor:"transparent",animation:"spin 1s linear infinite",margin:"0 auto 14px"}}/>
+              <div style={{fontSize:13,color:T.textSub}}>מושך ומתרגם חדשות…</div>
             </Card>
+          )}
+
+          {/* קבוצות חדשות */}
+          {newsItems.map((group,gi)=>(
+            <div key={gi}>
+              {/* כותרת קבוצה */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,marginTop:gi>0?8:0}}>
+                <div style={{height:1,flex:1,background:T.border}}/>
+                <div style={{
+                  fontSize:11,fontWeight:700,letterSpacing:1,
+                  color:group.type==="stock"?T.navy:T.textMid,
+                  background:group.type==="stock"?T.navyLight:T.bg,
+                  border:`1px solid ${group.type==="stock"?T.navyBorder:T.border}`,
+                  borderRadius:99,padding:"3px 12px"
+                }}>{group.label}</div>
+                <div style={{height:1,flex:1,background:T.border}}/>
+              </div>
+
+              {/* כתבות */}
+              {group.items.map((item,ii)=>(
+                <Card key={ii} style={{padding:14,marginBottom:8}}>
+                  {/* כותרת בעברית */}
+                  <div style={{fontSize:14,fontWeight:600,color:T.text,marginBottom:4,lineHeight:1.5,direction:"rtl"}}>
+                    {item.link
+                      ?<a href={item.link} target="_blank" rel="noopener noreferrer"
+                          style={{color:T.text,textDecoration:"none"}}>
+                          {item.titleHe} ↗
+                        </a>
+                      :item.titleHe}
+                  </div>
+                  {/* כותרת מקורית */}
+                  <div style={{fontSize:11,color:T.textSub,marginBottom:6,direction:"ltr",textAlign:"left"}}>
+                    {item.title}
+                  </div>
+                  {/* מקור + תאריך */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    {item.source&&<span style={{fontSize:10,fontWeight:600,color:T.navyMid,background:T.navyLight,borderRadius:99,padding:"2px 8px",border:`1px solid ${T.navyBorder}`}}>{item.source}</span>}
+                    {item.pubDate&&<span style={{fontSize:10,color:T.textSub}}>{new Date(item.pubDate).toLocaleDateString("he-IL")}</span>}
+                  </div>
+                </Card>
+              ))}
+            </div>
           ))}
+
+          {/* התראות מחיר — נשאר כמו שהיה */}
+          {priceAlerts.length>0&&(
+            <Card style={{border:`1px solid ${T.navyBorder}`,background:T.navyLight,padding:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+                <Icon name="target" size={14} color={T.navy}/>
+                <span style={{fontSize:13,fontWeight:700,color:T.navy}}>התראות מחיר פעילות</span>
+              </div>
+              {priceAlerts.map(a=>(
+                <div key={a.ticker} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${T.navyBorder}`}}>
+                  <span style={{fontSize:13,fontWeight:600,color:T.navy}}>⚡ {a.security}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:a.changePct>=0?T.success:T.danger}}>
+                    {a.changePct>=0?"+":""}{a.changePct.toFixed(1)}% ממחיר קנייה
+                  </span>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:T.textSub,marginTop:8}}>
+                * עדכן מחירים כדי לרענן התראות
+              </div>
+            </Card>
+          )}
+
+          {/* הגדרות התראה */}
+          <Card style={{padding:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:12}}>
+              <Icon name="settings" size={14} color={T.textMid}/>
+              <span style={{fontSize:13,fontWeight:700,color:T.text}}>סף התראת מחיר</span>
+            </div>
+            <div style={{fontSize:12,color:T.textSub,marginBottom:10}}>הצג התראה כשמחיר משתנה ב-X% ממחיר הקנייה</div>
+            <div style={{display:"flex",gap:8}}>
+              {[2,3,5,10].map(v=>(
+                <button key={v} onClick={()=>setAlertThresh(v)}
+                  style={{flex:1,padding:"8px",borderRadius:10,fontFamily:T.font,fontSize:13,fontWeight:700,
+                    cursor:"pointer",border:`1px solid ${alertThresh===v?T.navy:T.border}`,
+                    background:alertThresh===v?T.navy:"transparent",
+                    color:alertThresh===v?"#fff":T.textSub}}>
+                  {v}%
+                </button>
+              ))}
+            </div>
+          </Card>
+
         </div>
       )}
 
