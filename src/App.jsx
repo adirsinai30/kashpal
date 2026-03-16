@@ -1144,49 +1144,50 @@ const fetchNews = async (force=false) => {
           type: "stock"
         })),
         { ticker: "SPY", label: "S&P 500", type: "market" },
-        { ticker: "stock market", label: "שוק כללי", type: "market" },
+        { ticker: "stock market today", label: "שוק כללי", type: "market" },
       ];
 
-      const results = [];
+      // ── שלב 1: משוך את כל החדשות במקביל ──
+      const newsResults = await Promise.all(
+        queries.map(async q => {
+          try {
+            const r = await fetch(`/api/news?q=${encodeURIComponent(q.ticker)}`);
+            if (!r.ok) return { ...q, articles: [] };
+            const data = await r.json();
+            return { ...q, articles: data.items || [] };
+          } catch {
+            return { ...q, articles: [] };
+          }
+        })
+      );
 
-      for (const query of queries) {
+      // ── שלב 2: בקשת סיכום אחת לכל הניירות ──
+      const withArticles = newsResults.filter(g => g.articles.length > 0);
+      
+      let summaries = {};
+      if (withArticles.length > 0) {
         try {
-          // משוך כתבות
-          const r = await fetch(`/api/news?q=${encodeURIComponent(query.ticker)}`);
-          if (!r.ok) continue;
-          const data = await r.json();
-          if (!data.items?.length) continue;
-
-          // סכם עם Gemini
-          const sr = await fetch("/api/summarize", {
+          const r = await fetch("/api/summarize", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ticker: query.ticker,
-              companyName: query.label,
-              articles: data.items
-            })
+            body: JSON.stringify({ groups: withArticles })
           });
-          const sData = await sr.json();
-
-          // זהה מגמה מהסיכום
-          const summary = sData.summary || null;
-          const trend = !summary ? "neutral"
-            : /עלי|חיובי|זינוק|שיא|התחזק|גבוה|צמיח/.test(summary) ? "positive"
-            : /יריד|שלילי|צניח|הפסד|לחץ|חשש|ירד/.test(summary) ? "negative"
-            : "neutral";
-
-          results.push({
-            ticker: query.ticker,
-            label: query.label,
-            type: query.type,
-            summary,
-            trend,
-            articles: data.items,
-            updatedAt: new Date()
-          });
+          if (r.ok) {
+            const data = await r.json();
+            summaries = data.summaries || {};
+          }
         } catch {}
       }
+
+      // ── שלב 3: שלב תוצאות ──
+      const results = newsResults.map(group => {
+        const summary = summaries[group.ticker] || null;
+        const trend = !summary ? "neutral"
+          : /עלי|חיובי|זינוק|שיא|התחזק|גבוה|צמיח/.test(summary) ? "positive"
+          : /יריד|שלילי|צניח|הפסד|לחץ|חשש|ירד/.test(summary) ? "negative"
+          : "neutral";
+        return { ...group, summary, trend, updatedAt: new Date() };
+      });
 
       setNewsItems(results);
       setNewsLastFetch(new Date());
