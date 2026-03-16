@@ -28,7 +28,7 @@ ${sections}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 3000, temperature: 0.3 }
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.3 }
         })
       }
     );
