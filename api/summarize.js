@@ -41,9 +41,11 @@ ${sections}`;
       return res.json({ summaries: {} });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
+const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
+    console.log("RAW TEXT:", text);
     const clean = text.replace(/```json|```/g, "").trim();
     const match = clean.match(/\{[\s\S]*\}/);
+    console.log("MATCH:", match?.[0]?.slice(0, 200));
     const summaries = match ? JSON.parse(match[0]) : {};
 
     res.json({ summaries });
