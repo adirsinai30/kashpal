@@ -43,11 +43,23 @@ ${sections}`;
 
 const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
     console.log("RAW TEXT:", text);
-    const clean = text.replace(/```json\n?|```/g, "").trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    console.log("MATCH:", match?.[0]?.slice(0, 200));
-    const summaries = match ? JSON.parse(match[0]) : {};
-
+let summaries = {};
+    try {
+      // הסר כל סוגי backticks ורווחים
+      let clean = text;
+      clean = clean.replace(/^```[\w]*\s*/m, "");
+      clean = clean.replace(/\s*```\s*$/m, "");
+      clean = clean.trim();
+      console.log("CLEAN:", clean.slice(0, 200));
+      summaries = JSON.parse(clean);
+    } catch(parseErr) {
+      console.error("Parse failed:", parseErr.message);
+      // נסה regex כ-fallback
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { summaries = JSON.parse(match[0]); } catch {}
+      }
+    }
     res.json({ summaries });
   } catch (err) {
     console.error("Summarize error:", err);
